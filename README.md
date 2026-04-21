@@ -16,9 +16,17 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+You can start editing the page by modifying `src/app/page.tsx`. The page auto-updates as you edit the file.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Feedback extraction (Phase 1)
+
+To enable the Feedback panel’s Anthropic extraction call in local dev, create a `.env.local` file in the repo root:
+
+```bash
+NEXT_PUBLIC_ANTHROPIC_API_KEY=your_key_here
+```
+
+Do not commit `.env.local`.
 
 ## Learn More
 
