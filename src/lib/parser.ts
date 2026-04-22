@@ -76,6 +76,22 @@ export function parseBrief(raw: string): Brief {
   }
 
   pushSection();
-  return { sections };
+
+  // Some generations may repeat SECTION lines per-story; merge sections by id to keep one header per group.
+  const merged = new Map<string, BriefSection>();
+  const ordered: BriefSection[] = [];
+
+  for (const sec of sections) {
+    const key = sec.id || `${sec.icon}|${sec.label}`;
+    const existing = merged.get(key);
+    if (!existing) {
+      merged.set(key, { ...sec, stories: [...sec.stories] });
+      ordered.push(merged.get(key)!);
+    } else {
+      existing.stories.push(...sec.stories);
+    }
+  }
+
+  return { sections: ordered };
 }
 

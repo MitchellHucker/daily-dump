@@ -71,5 +71,23 @@ SNAP: Only snap present
     expect(brief.sections).toHaveLength(1);
     expect(brief.sections[0].stories).toHaveLength(1);
   });
+
+  test("merges duplicate SECTION groups (same id) into one section", () => {
+    const raw = `
+SECTION: ⚡ | AI & Tech | tech
+HEADLINE: Story one
+SNAP: Short one
+---
+SECTION: ⚡ | AI & Tech | tech
+HEADLINE: Story two
+SNAP: Short two
+---
+`.trim();
+
+    const brief = parseBrief(raw);
+    expect(brief.sections).toHaveLength(1);
+    expect(brief.sections[0].id).toBe("tech");
+    expect(brief.sections[0].stories).toHaveLength(2);
+  });
 });
 
