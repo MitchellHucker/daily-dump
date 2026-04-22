@@ -88,3 +88,43 @@ New: keep that line as a subtitle, add a live status line above or below that up
 - [ ] No regression in brief quality or parser behaviour
 - [ ] Works on both localhost and daily-dump.vercel.app
 - [ ] Committed and pushed to GitHub
+
+---
+
+## Implementation notes / handoff (post-build)
+
+This section captures what was actually implemented so future chats can start in the right place.
+
+### Current architecture (Phase 2.1)
+
+- **Route transport**: `POST /api/generate` returns **SSE** (`text/event-stream`) from an Edge Route Handler.
+- **Event types**:
+  - `event: status` / `data: ...` (multiple times during generation)
+  - `event: complete` / `data: <Brief JSON>` (once at the end)
+- **Client consumption**: the frontend uses `fetch()` + `response.body.getReader()` (not `EventSource`, since we need POST).
+
+### Key files
+
+- `src/app/api/generate/route.ts`
+  - Runs on **Edge runtime**.
+  - Creates a `ReadableStream` and `enqueue()`s SSE frames.
+  - Sends an immediate `status` frame (`Starting…`) to prove flushing/streaming begins instantly.
+- `src/lib/anthropicStream.ts`
+  - Calls `client.messages.stream(...)`.
+  - Streams web search progress by extracting the **server tool** usage for `web_search`.
+  - Important: web search is a **server tool**, so it may surface as `type: server_tool_use` (not only `tool_use`).
+  - Also listens to lower-level `streamEvent` in case tool activity is not emitted as a top-level content block.
+- `src/app/page.tsx`
+  - Parses SSE frames split by blank lines (`\\n\\n`).
+  - Updates a `liveStatus` line on `status` frames and renders the brief on `complete`.
+
+### Edge/SSE gotchas
+
+- **Forbidden headers**: avoid setting `Connection: keep-alive` in Edge route handlers.
+- **Buffering**: keep `Content-Type: text/event-stream` and `Cache-Control: no-cache, no-transform`. Optional: `X-Accel-Buffering: no`.
+
+### Quick verification (local)
+
+- Run `npm run dev`
+- Generate as Mitchell/Ralitsa
+- You should see the loading line update with real search queries (multiple `Searching: ...` messages) before the final brief renders.
