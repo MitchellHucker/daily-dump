@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { BriefView } from "../components/BriefView";
 import { FeedbackPanel } from "../components/FeedbackPanel";
 import { NudgeCard } from "../components/NudgeCard";
@@ -17,6 +17,7 @@ export default function Home() {
   const [brief, setBrief] = useState<Brief | null>(null);
   const [err, setErr] = useState("");
   const [genTime, setGenTime] = useState<string | null>(null);
+  const [today, setToday] = useState("");
   const [dismissedNudges, setDismissedNudges] = useState<Set<string>>(new Set());
   const [trackedEntities, setTrackedEntities] = useState<Set<string>>(new Set());
   const [nudgeAccepted, setNudgeAccepted] = useState<Record<string, string>>({});
@@ -24,9 +25,13 @@ export default function Home() {
 
   const { track, getNudge, dismissNudge } = useInteractionTracker();
 
-  const today = new Date()
-    .toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })
-    .toUpperCase();
+  useEffect(() => {
+    setToday(
+      new Date()
+        .toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })
+        .toUpperCase(),
+    );
+  }, []);
 
   const profile = active ? PROFILES[active as keyof typeof PROFILES] : null;
   const accent = profile?.accent || "#111";
@@ -100,12 +105,40 @@ export default function Home() {
     setErr("");
     setNudgeKey(null);
 
-    const delay = p.isStub ? 400 : 650;
-    setTimeout(() => {
-      setBrief(STUB_BRIEF);
+    if (p.isStub) {
+      setTimeout(() => {
+        setBrief(STUB_BRIEF);
+        setGenTime(new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }));
+        setStatus("done");
+      }, 400);
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profileId: p.id }),
+      });
+
+      const data: unknown = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg =
+          typeof (data as { error?: unknown })?.error === "string" ? String((data as { error?: unknown }).error) : `HTTP ${res.status}`;
+        throw new Error(msg);
+      }
+
+      const brief = (data as { brief?: Brief })?.brief;
+      if (!brief) throw new Error("Missing brief in response.");
+
+      setBrief(brief);
       setGenTime(new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }));
       setStatus("done");
-    }, delay);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setErr(msg);
+      setStatus("error");
+    }
   };
 
   return (

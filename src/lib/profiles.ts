@@ -88,3 +88,10 @@ SECTION: 🤖 | AI at Enterprise Scale | ai — cost and contract implications o
   },
 };
 
+export type ProfileId = keyof typeof PROFILES;
+export type RealProfileId = Exclude<ProfileId, "preview">;
+
+export function getProfile(profileId: ProfileId): Profile {
+  return PROFILES[profileId];
+}
+
