@@ -11,6 +11,33 @@ import { STUB_BRIEF, type Brief } from "../lib/stubs";
 
 type Status = "idle" | "loading" | "done" | "error";
 
+type SseFrame = { event: string; data: string };
+
+function parseSseFrames(chunk: string): { frames: SseFrame[]; rest: string } {
+  const parts = chunk.split("\n\n");
+  const rest = parts.pop() ?? "";
+  const frames: SseFrame[] = [];
+
+  for (const part of parts) {
+    const lines = part
+      .split("\n")
+      .map((l) => l.trimEnd())
+      .filter(Boolean);
+
+    let event = "message";
+    const dataLines: string[] = [];
+
+    for (const line of lines) {
+      if (line.startsWith("event:")) event = line.replace("event:", "").trim();
+      else if (line.startsWith("data:")) dataLines.push(line.replace("data:", "").trimStart());
+    }
+
+    frames.push({ event, data: dataLines.join("\n") });
+  }
+
+  return { frames, rest };
+}
+
 export default function Home() {
   const [active, setActive] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("idle");
@@ -18,6 +45,7 @@ export default function Home() {
   const [err, setErr] = useState("");
   const [genTime, setGenTime] = useState<string | null>(null);
   const [today, setToday] = useState("");
+  const [liveStatus, setLiveStatus] = useState("");
   const [dismissedNudges, setDismissedNudges] = useState<Set<string>>(new Set());
   const [trackedEntities, setTrackedEntities] = useState<Set<string>>(new Set());
   const [nudgeAccepted, setNudgeAccepted] = useState<Record<string, string>>({});
@@ -95,6 +123,7 @@ export default function Home() {
     setBrief(null);
     setNudgeKey(null);
     setErr("");
+    setLiveStatus("");
   };
 
   const generate = async () => {
@@ -104,40 +133,71 @@ export default function Home() {
     setBrief(null);
     setErr("");
     setNudgeKey(null);
+    setLiveStatus("Starting…");
 
     if (p.isStub) {
       setTimeout(() => {
         setBrief(STUB_BRIEF);
         setGenTime(new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }));
         setStatus("done");
+        setLiveStatus("");
       }, 400);
       return;
     }
 
     try {
+      const aborter = new AbortController();
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ profileId: p.id }),
+        signal: aborter.signal,
       });
 
-      const data: unknown = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const msg =
-          typeof (data as { error?: unknown })?.error === "string" ? String((data as { error?: unknown }).error) : `HTTP ${res.status}`;
+        const data: unknown = await res.json().catch(() => ({}));
+        const msg = typeof (data as { error?: unknown })?.error === "string" ? String((data as { error?: unknown }).error) : `HTTP ${res.status}`;
         throw new Error(msg);
       }
 
-      const brief = (data as { brief?: Brief })?.brief;
-      if (!brief) throw new Error("Missing brief in response.");
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("Missing response body stream.");
 
-      setBrief(brief);
-      setGenTime(new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }));
-      setStatus("done");
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const parsed = parseSseFrames(buffer);
+        buffer = parsed.rest;
+
+        for (const frame of parsed.frames) {
+          if (frame.event === "status") {
+            setLiveStatus(frame.data);
+          } else if (frame.event === "complete") {
+            const brief = JSON.parse(frame.data) as Brief;
+            setBrief(brief);
+            setGenTime(new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }));
+            setLiveStatus("");
+            setStatus("done");
+            aborter.abort();
+            return;
+          } else if (frame.event === "error") {
+            throw new Error(frame.data || "Generation failed.");
+          }
+        }
+      }
+
+      throw new Error("Stream ended before completion.");
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setErr(msg);
       setStatus("error");
+      setLiveStatus("");
     }
   };
 
@@ -178,6 +238,7 @@ export default function Home() {
               className="w-8 h-8 rounded-full border-2 border-[#ddd] mx-auto mb-5 animate-[dailyDumpSpin_0.8s_linear_infinite]"
               style={{ borderTopColor: accent }}
             />
+            <div className="font-mono text-[10px] text-[#777] tracking-[0.08em] mb-1">{liveStatus || "Starting…"}</div>
             <div className="font-mono text-[11px] text-[#999] tracking-[0.15em]">SEARCHING · COMPILING · WRITING</div>
           </div>
         )}
