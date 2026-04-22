@@ -11,6 +11,19 @@ For each section, output 2-3 stories. Each story MUST include all fields below.
 Separate stories with a line containing exactly:
 ---
 
+Field rules (match the Preview brief UI):
+- HEADLINE: short, punchy
+- SNAP: ONE sentence teaser (max ~140 characters). This is the only text shown before expansion.
+- DETAIL: 2-5 sentences. This is only shown after expansion.
+- TAKE: 1-2 sentences, opinionated, labelled as "<Name>'s take:".
+- SOURCE: 1-2 outlets max.
+- ENTITIES: 3-8 comma-separated entities.
+
+Formatting rules:
+- Every story MUST include SNAP and DETAIL (never omit DETAIL).
+- Do not put DETAIL text into SNAP.
+- Do not add extra lines without a field prefix (no continuation lines).
+
 Format:
 SECTION: <icon> | <label> | <id>
 HEADLINE: ...
