@@ -7,6 +7,21 @@ function s(v: unknown): string {
   return typeof v === "string" ? v.trim() : "";
 }
 
+function urlOrEmpty(v: unknown): string {
+  const u = s(v);
+  if (!u) return "";
+  if (u.startsWith("https://") || u.startsWith("http://")) return u;
+  return "";
+}
+
+function dateOrEmpty(v: unknown): string {
+  const d = s(v);
+  if (!d) return "";
+  // Strict YYYY-MM-DD only.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+  return "";
+}
+
 function clampSnap(text: string): string {
   if (text.length <= MAX_SNAP_CHARS) return text;
   const trimmed = text.slice(0, MAX_SNAP_CHARS).trimEnd();
@@ -34,6 +49,8 @@ export function validateBrief(raw: unknown): BriefResponse {
           const detail = s(story?.detail);
           const take = s(story?.take);
           const source = s(story?.source);
+          const sourceUrl = urlOrEmpty(story?.sourceUrl);
+          const sourceDate = dateOrEmpty(story?.sourceDate);
 
           if (!headline) return null;
           if (!snap || !detail) return null; // avoid “pre-expanded” rendering failures
@@ -47,7 +64,7 @@ export function validateBrief(raw: unknown): BriefResponse {
                 .slice(0, MAX_ENTITIES)
             : [];
 
-          return { headline, snap, detail, take, source, entities };
+          return { headline, snap, detail, take, source, sourceUrl, sourceDate, entities };
         })
         .filter(Boolean) as Story[];
 

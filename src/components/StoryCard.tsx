@@ -23,6 +23,21 @@ export function StoryCard({
 
   const entities = story.entities ?? [];
 
+  const sourceDateLabel = useMemo(() => {
+    const iso = story.sourceDate ?? "";
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+    if (!m) return "";
+    const year = Number(m[1]);
+    const month = Number(m[2]);
+    const day = Number(m[3]);
+    if (!year || month < 1 || month > 12 || day < 1 || day > 31) return "";
+
+    // Use UTC to avoid timezone shifting the day.
+    const dt = new Date(Date.UTC(year, month - 1, day));
+    const monthName = new Intl.DateTimeFormat(undefined, { month: "long", timeZone: "UTC" }).format(dt);
+    return `${day} ${monthName}`;
+  }, [story.sourceDate]);
+
   const handleExpand = () => {
     const next = !open;
     setOpen(next);
@@ -111,7 +126,26 @@ export function StoryCard({
           )}
 
           <div className="flex items-center justify-between gap-2">
-            {story.source && <div className="font-mono text-[10px] text-[#bbb]">↗ {story.source}</div>}
+            {story.source && (
+              <div className="font-mono text-[10px] text-[#bbb]">
+                ↗{" "}
+                {story.sourceUrl ? (
+                  <a
+                    href={story.sourceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline underline-offset-[2px] hover:text-[#888]"
+                    onClick={(e) => e.stopPropagation()}
+                    title={story.sourceUrl}
+                  >
+                    {story.source}
+                  </a>
+                ) : (
+                  story.source
+                )}
+                {sourceDateLabel ? <span className="ml-2 text-[#c2bcb1]">· {sourceDateLabel}</span> : null}
+              </div>
+            )}
             {sourceName && (
               <button
                 type="button"

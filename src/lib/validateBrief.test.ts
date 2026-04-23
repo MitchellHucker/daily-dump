@@ -15,6 +15,7 @@ describe("validateBrief", () => {
               detail: "Two sentences detail. Another sentence.",
               take: "Mitchell's take: This matters.",
               source: "FT",
+              sourceDate: "2026-04-22",
               entities: ["OpenAI", "GPT-4o", "AI pricing"],
             },
           ],
@@ -39,7 +40,7 @@ describe("validateBrief", () => {
           stories: [
             { headline: "Bad 1", snap: "", detail: "Detail", take: "", source: "", entities: [] },
             { headline: "Bad 2", snap: "Snap", detail: "", take: "", source: "", entities: [] },
-            { headline: "Good", snap: "Snap", detail: "Detail", take: "", source: "", entities: [] },
+            { headline: "Good", snap: "Snap", detail: "Detail", take: "", source: "", sourceDate: "not-a-date", entities: [] },
           ],
         },
       ],

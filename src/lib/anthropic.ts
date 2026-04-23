@@ -38,6 +38,15 @@ const briefTool: Anthropic.Tool = {
                     description: "One sentence starting with the person's name followed by a colon. Why this matters for them.",
                   },
                   source: { type: "string", description: "Source name(s)" },
+                  sourceUrl: {
+                    type: "string",
+                    description: "A direct URL to the primary source article (https://...). Leave empty string if unknown.",
+                  },
+                  sourceDate: {
+                    type: "string",
+                    description:
+                      "Publication date of the primary source article in YYYY-MM-DD format. Only include if you are confident; otherwise use empty string.",
+                  },
                   entities: {
                     type: "array",
                     maxItems: 3,
@@ -45,7 +54,7 @@ const briefTool: Anthropic.Tool = {
                     description: "Max 3 named companies, products, or topics",
                   },
                 },
-                required: ["headline", "snap", "detail", "take", "source", "entities"],
+                required: ["headline", "snap", "detail", "take", "source", "sourceUrl", "sourceDate", "entities"],
               },
             },
           },

@@ -43,6 +43,15 @@ const briefTool: Anthropic.Tool = {
                     description: "One sentence starting with the person's name followed by a colon. Why this matters for them.",
                   },
                   source: { type: "string", description: "Source name(s)" },
+                  sourceUrl: {
+                    type: "string",
+                    description: "A direct URL to the primary source article (https://...). Leave empty string if unknown.",
+                  },
+                  sourceDate: {
+                    type: "string",
+                    description:
+                      "Publication date of the primary source article in YYYY-MM-DD format. Only include if you are confident; otherwise use empty string.",
+                  },
                   entities: {
                     type: "array",
                     maxItems: 3,
@@ -50,7 +59,7 @@ const briefTool: Anthropic.Tool = {
                     description: "Max 3 named companies, products, or topics",
                   },
                 },
-                required: ["headline", "snap", "detail", "take", "source", "entities"],
+                required: ["headline", "snap", "detail", "take", "source", "sourceUrl", "sourceDate", "entities"],
               },
             },
           },
@@ -112,7 +121,7 @@ export async function* streamBrief(
       model: "claude-sonnet-4-5",
       max_tokens: 6000,
       tools: [{ type: "web_search_20250305", name: "web_search" }, briefTool],
-      tool_choice: { type: "tool", name: "deliver_brief" },
+      // Don't force deliver_brief during streaming; allow web_search tool use for live status.
       messages: [{ role: "user", content: prompt }],
     },
     { signal: opts?.signal },

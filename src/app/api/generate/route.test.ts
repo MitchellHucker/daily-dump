@@ -37,6 +37,7 @@ describe("/api/generate route", () => {
                   detail: "Detail",
                   take: "Take",
                   source: "Source",
+                  sourceDate: "",
                   entities: ["A"],
                 },
               ],

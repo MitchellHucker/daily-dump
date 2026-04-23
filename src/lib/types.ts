@@ -4,6 +4,8 @@ export interface Story {
   detail: string;
   take: string;
   source: string;
+  sourceUrl?: string;
+  sourceDate?: string; // YYYY-MM-DD if known
   entities: string[];
 }
 
