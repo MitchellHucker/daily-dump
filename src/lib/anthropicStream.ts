@@ -2,43 +2,65 @@ import "server-only";
 
 import Anthropic from "@anthropic-ai/sdk";
 import type { MessageStreamEvent } from "@anthropic-ai/sdk/resources/messages";
-import { parseBrief } from "./parser";
+import type { BriefResponse } from "./types";
 import { PROFILES, type ProfileId } from "./profiles";
-import type { Brief } from "./stubs";
 
 type StreamEvent =
   | { type: "status"; message: string }
-  | { type: "complete"; brief: Brief };
+  | { type: "complete"; brief: BriefResponse };
 
-const FORMAT_INSTRUCTIONS = `Output MUST be plain text in this exact line-prefixed format. Do NOT output JSON.
-
-For each section, output 2-3 stories. Each story MUST include all fields below.
-Separate stories with a line containing exactly:
----
-
-Field rules (match the Preview brief UI):
-- HEADLINE: short, punchy
-- SNAP: ONE sentence teaser (max ~140 characters). This is the only text shown before expansion.
-- DETAIL: 2-5 sentences. This is only shown after expansion.
-- TAKE: 1-2 sentences, opinionated, labelled as "<Name>'s take:".
-- SOURCE: 1-2 outlets max.
-- ENTITIES: 3-8 comma-separated entities.
-
-Formatting rules:
-- Every story MUST include SNAP and DETAIL (never omit DETAIL).
-- Do not put DETAIL text into SNAP.
-- Do not add extra lines without a field prefix (no continuation lines).
-
-Format:
-SECTION: <icon> | <label> | <id>
-HEADLINE: ...
-SNAP: ...
-DETAIL: ...
-TAKE: ...
-SOURCE: ...
-ENTITIES: comma, separated, entities
----
-`;
+const briefTool: Anthropic.Tool = {
+  name: "deliver_brief",
+  description: "Deliver the structured morning brief",
+  input_schema: {
+    type: "object",
+    properties: {
+      sections: {
+        type: "array",
+        minItems: 1,
+        maxItems: 8,
+        items: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            icon: { type: "string" },
+            label: { type: "string" },
+            stories: {
+              type: "array",
+              minItems: 1,
+              maxItems: 8,
+              items: {
+                type: "object",
+                properties: {
+                  headline: { type: "string", description: "Punchy headline, max 12 words" },
+                  snap: { type: "string", description: "One sentence, max 20 words. The whole story in one hit." },
+                  detail: {
+                    type: "string",
+                    description: "2-3 sentences. Balanced, multiple angles. Specific figures where available.",
+                  },
+                  take: {
+                    type: "string",
+                    description: "One sentence starting with the person's name followed by a colon. Why this matters for them.",
+                  },
+                  source: { type: "string", description: "Source name(s)" },
+                  entities: {
+                    type: "array",
+                    maxItems: 3,
+                    items: { type: "string" },
+                    description: "Max 3 named companies, products, or topics",
+                  },
+                },
+                required: ["headline", "snap", "detail", "take", "source", "entities"],
+              },
+            },
+          },
+          required: ["id", "icon", "label", "stories"],
+        },
+      },
+    },
+    required: ["sections"],
+  },
+};
 
 function getClient() {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -82,14 +104,15 @@ export async function* streamBrief(
   opts?: { signal?: AbortSignal },
 ): AsyncGenerator<StreamEvent, void, void> {
   const profile = assertRealProfile(profileId);
-  const prompt = profile.prompt(FORMAT_INSTRUCTIONS);
+  const prompt = profile.prompt();
 
   const client = getClient();
   const stream = client.messages.stream(
     {
       model: "claude-sonnet-4-5",
       max_tokens: 6000,
-      tools: [{ type: "web_search_20250305", name: "web_search" }],
+      tools: [{ type: "web_search_20250305", name: "web_search" }, briefTool],
+      tool_choice: { type: "tool", name: "deliver_brief" },
       messages: [{ role: "user", content: prompt }],
     },
     { signal: opts?.signal },
@@ -145,14 +168,9 @@ export async function* streamBrief(
   if (streamError) throw streamError;
 
   const message = await stream.finalMessage();
-  const raw = message.content
-    .filter((block) => block.type === "text")
-    .map((block) => (block as Anthropic.TextBlock).text)
-    .join("\n");
 
-  if (!raw.trim()) throw new Error("Model returned empty text output.");
-
-  const brief = parseBrief(raw);
-  yield { type: "complete", brief };
+  const toolUse = message.content.find((block) => block.type === "tool_use" && block.name === "deliver_brief");
+  if (!toolUse || toolUse.type !== "tool_use") throw new Error("Model did not return a structured brief.");
+  yield { type: "complete", brief: toolUse.input as BriefResponse };
 }
 

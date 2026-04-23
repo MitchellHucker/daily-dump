@@ -1,24 +1,9 @@
-export type Story = {
-  headline: string;
-  snap: string;
-  detail?: string;
-  take?: string;
-  source?: string;
-  entities?: string[];
-};
+import type { BriefResponse, Section, Story } from "./types";
 
-export type BriefSection = {
-  icon: string;
-  label: string;
-  id: string;
-  stories: Story[];
-};
+// Canonical types for briefs.
+export type { Story, Section as BriefSection, BriefResponse as Brief };
 
-export type Brief = {
-  sections: BriefSection[];
-};
-
-export const STUB_BRIEF: Brief = {
+export const STUB_BRIEF: BriefResponse = {
   sections: [
     {
       icon: "⚡",

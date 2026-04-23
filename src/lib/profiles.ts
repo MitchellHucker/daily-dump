@@ -7,7 +7,7 @@ export type Profile = {
   role: string;
   accent: string;
   sections: ProfileSection[];
-  prompt: (formatInstructions: string) => string;
+  prompt: () => string;
   isStub?: boolean;
 };
 
@@ -26,10 +26,8 @@ export const PROFILES: Record<"mitchell" | "ralitsa" | "preview", Profile> = {
       { id: "geo", icon: "🌍", label: "Geopolitics" },
       { id: "australia", icon: "🦘", label: "Australia" },
     ],
-    prompt(format) {
+    prompt() {
       return `You are a personal news editor. Search the web for news from the last 24 hours. Write a morning brief for Mitchell — a Product Manager at a LegalTech/FinTech startup in London, relocating to Australia. Interested in AI, startups, markets, and geopolitics.
-
-${format}
 
 Cover these sections in order:
 SECTION: ⚡ | AI & Tech | tech — AI releases, startup news, interesting new products
@@ -56,12 +54,10 @@ SECTION: 🦘 | Australia | australia — visa/immigration changes, UK-to-Austra
       { id: "insurance", icon: "🏦", label: "Insurance Sector" },
       { id: "ai", icon: "🤖", label: "AI at Enterprise Scale" },
     ],
-    prompt(format) {
+    prompt() {
       return `You are a personal news editor. Search the web for news from the last 24 hours. Write a morning brief for Ralitsa — senior Category Manager for IT and Professional Services at a large insurance company. C-suite framing. Strategic intelligence, not operational detail.
 
 Key focus: Broadcom/VMware, Microsoft (Power BI to Fabric transition, Copilot pricing), Oracle, SAP commercial changes; chip/hardware supply; outcome-based pricing shifts across the vendor market; tariffs and supply chain risk for a UK insurer. Include percentage price changes and timelines where available.
-
-${format}
 
 Cover these sections in order:
 SECTION: 🏢 | Vendor Watch | vendors — major vendor pricing changes, model shifts, Broadcom, Microsoft, Oracle, SAP, any supplier becoming commercially aggressive at scale

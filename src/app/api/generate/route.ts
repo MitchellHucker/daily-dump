@@ -1,5 +1,6 @@
 import { streamBrief } from "@/lib/anthropicStream";
 import type { ProfileId } from "@/lib/profiles";
+import { validateBrief } from "@/lib/validateBrief";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -59,7 +60,8 @@ export async function POST(request: Request) {
               const frame = sseEvent("status", ev.message);
               controller.enqueue(encoder.encode(frame));
             } else if (ev.type === "complete") {
-              const payload = JSON.stringify(ev.brief);
+              const validated = validateBrief(ev.brief);
+              const payload = JSON.stringify(validated);
               const frame = sseEvent("complete", payload);
               controller.enqueue(encoder.encode(frame));
               controller.close();

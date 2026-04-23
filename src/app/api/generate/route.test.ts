@@ -22,7 +22,28 @@ describe("/api/generate route", () => {
   test("returns 200 and SSE stream on success", async () => {
     (streamBrief as jest.Mock).mockImplementationOnce(async function* () {
       yield { type: "status", message: "Searching: test" };
-      yield { type: "complete", brief: { sections: [] } };
+      yield {
+        type: "complete",
+        brief: {
+          sections: [
+            {
+              id: "tech",
+              icon: "⚡",
+              label: "AI & Tech",
+              stories: [
+                {
+                  headline: "Headline",
+                  snap: "Snap",
+                  detail: "Detail",
+                  take: "Take",
+                  source: "Source",
+                  entities: ["A"],
+                },
+              ],
+            },
+          ],
+        },
+      };
     });
 
     const res = await POST(
