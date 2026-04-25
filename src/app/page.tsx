@@ -1,327 +1,63 @@
-"use client";
-
-import { useCallback, useEffect, useState } from "react";
-import { BriefView } from "../components/BriefView";
-import { FeedbackPanel } from "../components/FeedbackPanel";
-import { NudgeCard } from "../components/NudgeCard";
-import { ProfileBar } from "../components/ProfileBar";
-import { useInteractionTracker } from "../lib/interactions";
-import { PROFILES } from "../lib/profiles";
-import { STUB_BRIEF, type Brief } from "../lib/stubs";
-
-type Status = "idle" | "loading" | "done" | "error";
-
-type SseFrame = { event: string; data: string };
-
-function parseSseFrames(chunk: string): { frames: SseFrame[]; rest: string } {
-  const parts = chunk.split("\n\n");
-  const rest = parts.pop() ?? "";
-  const frames: SseFrame[] = [];
-
-  for (const part of parts) {
-    const lines = part
-      .split("\n")
-      .map((l) => l.trimEnd())
-      .filter(Boolean);
-
-    let event = "message";
-    const dataLines: string[] = [];
-
-    for (const line of lines) {
-      if (line.startsWith("event:")) event = line.replace("event:", "").trim();
-      else if (line.startsWith("data:")) dataLines.push(line.replace("data:", "").trimStart());
-    }
-
-    frames.push({ event, data: dataLines.join("\n") });
-  }
-
-  return { frames, rest };
-}
+import Link from "next/link";
 
 export default function Home() {
-  const [active, setActive] = useState<string | null>(null);
-  const [status, setStatus] = useState<Status>("idle");
-  const [brief, setBrief] = useState<Brief | null>(null);
-  const [err, setErr] = useState("");
-  const [genTime, setGenTime] = useState<string | null>(null);
-  const [today, setToday] = useState("");
-  const [liveStatus, setLiveStatus] = useState("");
-  const [dismissedNudges, setDismissedNudges] = useState<Set<string>>(new Set());
-  const [trackedEntities, setTrackedEntities] = useState<Set<string>>(new Set());
-  const [nudgeAccepted, setNudgeAccepted] = useState<Record<string, string>>({});
-  const [nudgeKey, setNudgeKey] = useState<string | null>(null);
-
-  const { track, getNudge, dismissNudge } = useInteractionTracker();
-
-  useEffect(() => {
-    setToday(
-      new Date()
-        .toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })
-        .toUpperCase(),
-    );
-  }, []);
-
-  const profile = active ? PROFILES[active as keyof typeof PROFILES] : null;
-  const accent = profile?.accent || "#111";
-  const acceptedCount = Object.keys(nudgeAccepted).length;
-
-  const checkForNudge = useCallback(() => {
-    const key = getNudge();
-    if (key && !dismissedNudges.has(key)) setNudgeKey(key);
-  }, [getNudge, dismissedNudges]);
-
-  const handleExpand = useCallback(
-    (entities: string[]) => {
-      track("expand", entities);
-      setTimeout(checkForNudge, 100);
-    },
-    [track, checkForNudge],
-  );
-
-  const handleFollow = useCallback(
-    (entities: string[]) => {
-      track("follow", entities);
-      setTrackedEntities((prev) => new Set([...prev, ...entities]));
-      setTimeout(checkForNudge, 100);
-    },
-    [track, checkForNudge],
-  );
-
-  const handleTrackEntity = useCallback(
-    (entity: string) => {
-      track("follow", [entity]);
-      setTrackedEntities((prev) => new Set([...prev, entity]));
-      setTimeout(checkForNudge, 100);
-    },
-    [track, checkForNudge],
-  );
-
-  const handleNudgeYes = (key: string) => {
-    setNudgeAccepted((p) => ({ ...p, [key]: "more" }));
-    dismissNudge(key);
-    setDismissedNudges((p) => new Set([...p, key]));
-    setNudgeKey(null);
-  };
-
-  const handleNudgeCustom = (key: string, text: string) => {
-    setNudgeAccepted((p) => ({ ...p, [key]: text }));
-    dismissNudge(key);
-    setDismissedNudges((p) => new Set([...p, key]));
-    setNudgeKey(null);
-  };
-
-  const handleNudgeNo = (key: string) => {
-    dismissNudge(key);
-    setDismissedNudges((p) => new Set([...p, key]));
-    setNudgeKey(null);
-  };
-
-  const select = (id: string) => {
-    if (active === id) return;
-    setActive(id);
-    setStatus("idle");
-    setBrief(null);
-    setNudgeKey(null);
-    setErr("");
-    setLiveStatus("");
-  };
-
-  const generate = async () => {
-    if (!active) return;
-    const p = PROFILES[active as keyof typeof PROFILES];
-    setStatus("loading");
-    setBrief(null);
-    setErr("");
-    setNudgeKey(null);
-    setLiveStatus("Starting…");
-
-    if (p.isStub) {
-      setTimeout(() => {
-        setBrief(STUB_BRIEF);
-        setGenTime(new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }));
-        setStatus("done");
-        setLiveStatus("");
-      }, 400);
-      return;
-    }
-
-    try {
-      const aborter = new AbortController();
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profileId: p.id }),
-        signal: aborter.signal,
-      });
-
-      if (!res.ok) {
-        const data: unknown = await res.json().catch(() => ({}));
-        const msg = typeof (data as { error?: unknown })?.error === "string" ? String((data as { error?: unknown }).error) : `HTTP ${res.status}`;
-        throw new Error(msg);
-      }
-
-      const reader = res.body?.getReader();
-      if (!reader) throw new Error("Missing response body stream.");
-
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      // eslint-disable-next-line no-constant-condition
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-
-        const parsed = parseSseFrames(buffer);
-        buffer = parsed.rest;
-
-        for (const frame of parsed.frames) {
-          if (frame.event === "status") {
-            setLiveStatus(frame.data);
-          } else if (frame.event === "complete") {
-            const brief = JSON.parse(frame.data) as Brief;
-            setBrief(brief);
-            setGenTime(new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }));
-            setLiveStatus("");
-            setStatus("done");
-            aborter.abort();
-            return;
-          } else if (frame.event === "error") {
-            throw new Error(frame.data || "Generation failed.");
-          }
-        }
-      }
-
-      throw new Error("Stream ended before completion.");
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setErr(msg);
-      setStatus("error");
-      setLiveStatus("");
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      <header className="sticky top-0 z-[100] h-[52px] bg-[#111] grid grid-cols-[1fr_auto] items-center px-5">
-        <div className="font-heading text-[18px] font-extrabold tracking-[-0.5px] text-[#f5f2ed]">
-          Daily<span className="text-[#f5a623]">.</span>Dump
+    <main className="min-h-screen bg-[var(--bg)] text-[var(--ink)] flex items-center justify-center px-6 py-10">
+      <div className="w-full max-w-[360px] min-h-[620px] flex flex-col items-center justify-center">
+        <div className="font-heading text-[42px] font-extrabold tracking-[-1.2px] leading-none mb-[6px]">
+          Daily<span className="text-[var(--amber)]">.</span>Dump
         </div>
-        <div className="font-mono text-[10px] text-[#444] tracking-[0.08em]">{today}</div>
-      </header>
+        <p className="font-sans text-[14px] leading-[1.55] font-light text-[var(--ink-light)] text-center max-w-[210px] mb-10">
+          Your news, personalised.
+          <br />
+          Every morning.
+        </p>
 
-      <ProfileBar profiles={Object.values(PROFILES)} activeProfileId={active} onSelect={select} />
+        <Link
+          href="/onboarding/topics"
+          className="min-h-11 w-full flex items-center justify-center gap-2 rounded-[var(--radius)] border border-[var(--rule)] bg-white px-4 py-[11px] font-mono text-[12px] font-medium text-[var(--ink)] transition-colors hover:border-[var(--ink-light)]"
+        >
+          <span className="h-[14px] w-[14px] rounded-full bg-[linear-gradient(135deg,#4285f4_25%,#ea4335_25%_50%,#fbbc05_50%_75%,#34a853_75%)]" />
+          Continue with Google
+        </Link>
 
-      <main className="max-w-[680px] mx-auto px-4 pt-6 pb-20">
-        {!active && (
-          <div className="text-center pt-[72px] font-mono text-xs text-[#aaa] tracking-[0.12em]">SELECT A PROFILE TO BEGIN</div>
-        )}
+        <div className="my-[14px] flex w-full items-center gap-3">
+          <div className="h-px flex-1 bg-[var(--rule)]" />
+          <span className="font-mono text-[10px] text-[var(--ink-ghost)]">or</span>
+          <div className="h-px flex-1 bg-[var(--rule)]" />
+        </div>
 
-        {active && status === "idle" && profile && (
-          <div className="pt-14 text-center">
-            <div className="font-heading text-[28px] font-bold text-[#111] mb-[6px]">Morning, {profile.name.split(" ")[0]}.</div>
-            <div className="font-mono text-[11px] text-[#999] tracking-[0.12em] mb-8">YOUR BRIEF IS WAITING</div>
-            <button
-              type="button"
-              className="font-mono text-[11px] tracking-[0.15em] uppercase px-7 py-[13px] bg-[#111] text-[#f5f2ed] border-b-[3px] transition-opacity hover:opacity-80"
-              style={{ borderBottomColor: accent }}
-              onClick={generate}
-            >
-              Generate Today&apos;s Dump →
-            </button>
-          </div>
-        )}
+        <input
+          aria-label="Email address"
+          className="mb-2 min-h-11 w-full rounded-[var(--radius)] border border-[var(--rule)] bg-white px-3 py-[10px] font-sans text-[12px] font-light text-[var(--ink)] outline-none placeholder:text-[var(--ink-light)] focus:border-[var(--ink-light)]"
+          placeholder="Email address"
+          type="email"
+        />
+        <input
+          aria-label="Password"
+          className="mb-[14px] min-h-11 w-full rounded-[var(--radius)] border border-[var(--rule)] bg-white px-3 py-[10px] font-sans text-[12px] font-light text-[var(--ink)] outline-none placeholder:text-[var(--ink-light)] focus:border-[var(--ink-light)]"
+          placeholder="Password"
+          type="password"
+        />
 
-        {status === "loading" && (
-          <div className="py-20 text-center">
-            <div
-              className="w-8 h-8 rounded-full border-2 border-[#ddd] mx-auto mb-5 animate-[dailyDumpSpin_0.8s_linear_infinite]"
-              style={{ borderTopColor: accent }}
-            />
-            <div className="font-mono text-[10px] text-[#777] tracking-[0.08em] mb-1">{liveStatus || "Starting…"}</div>
-            <div className="font-mono text-[11px] text-[#999] tracking-[0.15em]">SEARCHING · COMPILING · WRITING</div>
-          </div>
-        )}
+        <Link
+          href="/onboarding/topics"
+          className="min-h-11 w-full rounded-[var(--radius)] bg-[var(--ink)] px-4 py-3 text-center font-mono text-[12px] font-semibold tracking-[0.04em] text-[var(--bg)] transition-opacity hover:opacity-90"
+        >
+          Create account →
+        </Link>
 
-        {status === "error" && (
-          <div>
-            <div className="bg-[#fff8f8] border-l-[3px] border-l-[#cc3333] px-4 py-[14px] font-mono text-[11px] text-[#993333] mt-6">
-              Error: {err}
-            </div>
-            <div className="mt-3 text-right">
-              <button
-                type="button"
-                className="font-mono text-[10px] tracking-[0.12em] px-3 py-[6px] bg-transparent border border-[#ddd] text-[#888] hover:border-[#999] hover:text-[#444]"
-                onClick={generate}
-              >
-                Try Again
-              </button>
-            </div>
-          </div>
-        )}
+        <div className="mt-[14px] text-center font-sans text-[12px] font-light text-[var(--ink-light)]">
+          Already have an account?{" "}
+          <Link href="/brief" className="font-medium text-[var(--amber)]">
+            Sign in
+          </Link>
+        </div>
 
-        {status === "done" && brief && profile && (
-          <div>
-            <div className="pb-4 mb-1 border-b-2 border-[#111] flex justify-between items-end">
-              <div className="font-heading text-[22px] font-extrabold text-[#111]">
-                {profile.isStub ? "Preview Brief" : `${profile.name.split(" ")[0]}'s Brief`}
-                {profile.isStub ? (
-                  <span className="ml-[10px] align-middle font-mono text-[9px] tracking-[0.15em] px-2 py-[2px] border bg-[rgba(90,122,90,0.12)] text-[#5a7a5a] border-[#5a7a5a]">
-                    STUB
-                  </span>
-                ) : null}
-                {!profile.isStub && acceptedCount > 0 ? (
-                  <span
-                    className="inline-block w-[5px] h-[5px] rounded-full bg-[#4a9a4a] ml-[6px] align-middle"
-                    title="Personalisation active"
-                  />
-                ) : null}
-              </div>
-              <div className="font-mono text-[10px] text-[#999] tracking-[0.08em] text-right">
-                {genTime}
-                <br />
-                {today}
-              </div>
-            </div>
-
-            <div className="flex justify-end mb-3">
-              <button
-                type="button"
-                className="font-mono text-[10px] tracking-[0.12em] px-3 py-[6px] bg-transparent border border-[#ddd] text-[#888] hover:border-[#999] hover:text-[#444]"
-                onClick={generate}
-              >
-                ↻ Refresh
-              </button>
-            </div>
-
-            {nudgeKey ? (
-              <NudgeCard
-                entityKey={nudgeKey}
-                accent={accent}
-                onYes={() => handleNudgeYes(nudgeKey)}
-                onCustom={(text) => handleNudgeCustom(nudgeKey, text)}
-                onNo={() => handleNudgeNo(nudgeKey)}
-              />
-            ) : null}
-
-            <BriefView
-              brief={brief}
-              accent={accent}
-              onExpand={handleExpand}
-              onFollow={handleFollow}
-              onTrackEntity={handleTrackEntity}
-              trackedEntities={trackedEntities}
-            />
-
-            {!profile.isStub ? <FeedbackPanel profile={profile} /> : null}
-
-            <div className="mt-6 p-[14px] border border-[#e0dcd4] font-mono text-[10px] text-[#bbb] leading-[1.7]">
-              AI-generated from live web sources. Not financial, legal, or professional advice. Always verify before acting.
-              Personalisation tracks topic engagement — not source lean.
-            </div>
-          </div>
-        )}
-      </main>
-    </div>
+        <p className="mt-5 max-w-[240px] text-center font-sans text-[10px] font-light leading-[1.6] text-[var(--ink-ghost)]">
+          By continuing you agree to our Terms of Service and Privacy Policy.
+        </p>
+      </div>
+    </main>
   );
 }

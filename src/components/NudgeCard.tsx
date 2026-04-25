@@ -20,11 +20,11 @@ export function NudgeCard({
 
   return (
     <div
-      className="bg-white border border-[#e0dcd4] border-l-[3px] px-[18px] py-4 my-4 animate-[slideIn_0.2s_ease-out]"
+      className="my-4 animate-[dailyDumpSlideIn_0.2s_ease-out] rounded-[var(--radius)] border border-[var(--rule)] border-l-2 bg-[var(--amber-bg)] px-[18px] py-4"
       style={{ borderLeftColor: accent }}
     >
-      <div className="font-heading text-[15px] font-bold text-[#111] mb-1">You keep reading about {entityKey}</div>
-      <div className="text-[13px] text-[#666] leading-[1.55] mb-[14px] font-light">
+      <div className="mb-1 font-heading text-[16px] font-bold tracking-[-0.25px] text-[var(--ink)]">You keep reading about {entityKey}</div>
+      <div className="mb-[14px] font-sans text-[13px] font-light leading-[1.55] text-[var(--ink-mid)]">
         Want us to go deeper — more coverage, more angles?
       </div>
 
@@ -32,22 +32,21 @@ export function NudgeCard({
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            className="font-mono text-[10px] tracking-[0.12em] px-[14px] py-[7px] uppercase text-[#f5f2ed] transition-opacity hover:opacity-80"
-            style={{ background: accent }}
+            className="min-h-11 rounded-[var(--radius)] bg-[var(--ink)] px-[14px] py-[8px] font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--bg)] transition-opacity hover:opacity-90"
             onClick={onYes}
           >
             Yes, more {entityKey}
           </button>
           <button
             type="button"
-            className="font-mono text-[10px] tracking-[0.12em] px-[14px] py-[7px] uppercase bg-transparent border border-[#ccc] text-[#666] hover:border-[#888]"
+            className="min-h-11 rounded-[var(--radius)] border border-[var(--rule)] bg-white/70 px-[14px] py-[8px] font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-mid)] transition-colors hover:border-[var(--ink-light)]"
             onClick={() => setCustomOpen(true)}
           >
             Customise →
           </button>
           <button
             type="button"
-            className="font-mono text-[10px] tracking-[0.12em] px-[14px] py-[7px] bg-transparent border border-transparent text-[#aaa] hover:text-[#666]"
+            className="min-h-11 rounded-[var(--radius)] border border-transparent bg-transparent px-[14px] py-[8px] font-mono text-[10px] tracking-[0.12em] text-[var(--ink-light)] hover:text-[var(--ink-mid)]"
             onClick={onNo}
           >
             No thanks
@@ -56,7 +55,7 @@ export function NudgeCard({
       ) : (
         <div>
           <textarea
-            className="w-full min-h-14 px-[14px] py-3 font-sans text-[13px] text-[#111] bg-white border border-[#ddd] resize-y outline-none leading-[1.6] transition-colors focus:border-[#999] placeholder:text-[#bbb] mb-2"
+            className="mb-2 min-h-20 w-full resize-y rounded-[var(--radius)] border border-[var(--rule)] bg-white px-[14px] py-3 font-sans text-[13px] leading-[1.6] text-[var(--ink)] outline-none transition-colors placeholder:text-[var(--ink-ghost)] focus:border-[var(--ink-light)]"
             placeholder='e.g. "Yes but commercial/pricing news only, not product launches"'
             value={customText}
             onChange={(e) => setCustomText(e.target.value)}
@@ -64,8 +63,7 @@ export function NudgeCard({
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              className="font-mono text-[10px] tracking-[0.12em] px-[14px] py-[7px] uppercase text-[#f5f2ed] transition-opacity hover:opacity-80 disabled:opacity-30 disabled:cursor-not-allowed"
-              style={{ background: accent }}
+              className="min-h-11 rounded-[var(--radius)] bg-[var(--ink)] px-[14px] py-[8px] font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--bg)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-30"
               onClick={() => onCustom(customText)}
               disabled={!customText.trim()}
             >
@@ -73,7 +71,7 @@ export function NudgeCard({
             </button>
             <button
               type="button"
-              className="font-mono text-[10px] tracking-[0.12em] px-[14px] py-[7px] bg-transparent border border-transparent text-[#aaa] hover:text-[#666]"
+              className="min-h-11 rounded-[var(--radius)] border border-transparent bg-transparent px-[14px] py-[8px] font-mono text-[10px] tracking-[0.12em] text-[var(--ink-light)] hover:text-[var(--ink-mid)]"
               onClick={onNo}
             >
               Cancel
@@ -82,7 +80,7 @@ export function NudgeCard({
         </div>
       )}
 
-      <div className="font-mono text-[9px] text-[#bbb] tracking-[0.08em] mt-[10px] leading-[1.6]">
+      <div className="mt-[10px] font-mono text-[9px] leading-[1.6] tracking-[0.08em] text-[var(--ink-ghost)]">
         We add more {entityKey} coverage across multiple sources and angles — not just one perspective.
       </div>
     </div>

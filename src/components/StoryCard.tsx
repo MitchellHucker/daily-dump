@@ -61,28 +61,37 @@ export function StoryCard({
   }, [story.source, story.take]);
 
   return (
-    <div className="border-b border-[#e8e4dc] overflow-hidden">
-      <div className="flex items-start gap-[10px] py-[11px] cursor-pointer select-none group" onClick={handleExpand}>
+    <div className="overflow-hidden border-b border-[#edeae4]">
+      <div className="group flex cursor-pointer select-none items-start gap-2 py-[9px]" onClick={handleExpand}>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-[#111] leading-[1.35] mb-[3px] transition-opacity group-hover:opacity-70">
+          <div
+            className={[
+              "mb-[2px] leading-[1.35] transition-opacity group-hover:opacity-70",
+              open
+                ? "font-heading text-[17px] font-bold tracking-[-0.25px] text-[var(--ink)]"
+                : "font-sans text-[13px] font-semibold tracking-[-0.1px] text-[var(--ink)]",
+            ].join(" ")}
+          >
             {story.headline}
           </div>
-          <div className="text-[13px] text-[#666] leading-[1.5] font-light">{story.snap}</div>
+          <div className={["font-sans text-[12px] leading-[1.45] font-light", open ? "text-[#888]" : "text-[var(--ink-light)]"].join(" ")}>
+            {story.snap}
+          </div>
         </div>
         <div
           className={[
-            "shrink-0 mt-[2px] font-mono text-sm text-[#bbb] transition-transform duration-200",
-            open ? "rotate-45 text-[#777]" : "",
+            "mt-[1px] shrink-0 font-mono text-[14px] text-[#d4cfc8] transition-colors duration-200",
+            open ? "text-[var(--ink-light)]" : "",
           ].join(" ")}
         >
-          +
+          {open ? "×" : "+"}
         </div>
       </div>
 
       {open && (
-        <div className="pb-[14px] animate-[dailyDumpSlideIn_0.18s_ease-out]">
+        <div className="animate-[dailyDumpSlideIn_0.18s_ease-out] pb-[9px]">
           {entities.length > 0 && (
-            <div className="flex flex-wrap gap-[6px] mb-2">
+            <div className="mb-[7px] flex flex-wrap gap-[3px]">
               {entities.map((entity) => {
                 const isTracked = trackedEntities.has(entity);
                 return (
@@ -90,10 +99,10 @@ export function StoryCard({
                     key={entity}
                     type="button"
                     className={[
-                      "font-mono text-[9px] px-[7px] py-[2px] border rounded-[2px] transition-colors",
+                      "rounded-[3px] px-[6px] py-[2px] font-mono text-[8px] transition-colors",
                       isTracked
-                        ? "bg-[#f0f4ff] border-[#a8b8e8] text-[#2a3a8a]"
-                        : "bg-[#f0ece4] border-[#e0dcd4] text-[#888] hover:bg-[#e8e4dc] hover:text-[#444]",
+                        ? "bg-[var(--amber-bg)] text-[var(--amber)]"
+                        : "bg-[#eeeae2] text-[#aaa] hover:bg-[#e8e4dc] hover:text-[var(--ink-mid)]",
                     ].join(" ")}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -101,7 +110,7 @@ export function StoryCard({
                     }}
                     title="Click to track"
                   >
-                    {isTracked ? "✓ " : "# "}
+                    {isTracked ? "✓ " : ""}
                     {entity}
                   </button>
                 );
@@ -109,15 +118,15 @@ export function StoryCard({
             </div>
           )}
 
-          {story.detail && <div className="text-[13px] text-[#555] leading-[1.65] font-light mb-[10px]">{story.detail}</div>}
+          {story.detail && <div className="mb-[7px] font-sans text-[12px] font-light leading-[1.62] text-[var(--ink-mid)]">{story.detail}</div>}
 
           {takeText && (
             <div
-              className="block text-xs leading-[1.5] text-[#333] px-[10px] py-[6px] mb-[10px] bg-[rgba(0,0,0,0.03)] border-l-2"
+              className="mb-[7px] block border-l-2 bg-[var(--amber-bg)] px-2 py-[5px] font-sans text-[11px] font-light leading-[1.5] text-[#555]"
               style={{ borderLeftColor: accent }}
             >
               {takeLabel && (
-                <span className="block font-mono text-[9px] tracking-[0.12em] uppercase mb-[2px]" style={{ color: accent }}>
+                <span className="mb-[2px] block font-mono text-[8px] font-semibold uppercase tracking-[0.14em]" style={{ color: accent }}>
                   {takeLabel}
                 </span>
               )}
@@ -127,14 +136,13 @@ export function StoryCard({
 
           <div className="flex items-center justify-between gap-2">
             {story.source && (
-              <div className="font-mono text-[10px] text-[#bbb]">
-                ↗{" "}
+              <div className="font-sans text-[10px] text-[var(--amber)]">
                 {story.sourceUrl ? (
                   <a
                     href={story.sourceUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="underline underline-offset-[2px] hover:text-[#888]"
+                    className="underline decoration-[rgba(196,113,42,0.4)] underline-offset-[2px] hover:text-[var(--ink)]"
                     onClick={(e) => e.stopPropagation()}
                     title={story.sourceUrl}
                   >
@@ -143,7 +151,7 @@ export function StoryCard({
                 ) : (
                   story.source
                 )}
-                {sourceDateLabel ? <span className="ml-2 text-[#c2bcb1]">· {sourceDateLabel}</span> : null}
+                {sourceDateLabel ? <span className="ml-[3px] font-mono text-[9px] text-[var(--ink-ghost)]">· {sourceDateLabel}</span> : null}
               </div>
             )}
             {sourceName && (
@@ -151,11 +159,13 @@ export function StoryCard({
                 type="button"
                 onClick={handleFollow}
                 className={[
-                  "font-mono text-[9px] tracking-[0.12em] uppercase px-[10px] py-1 border transition-colors",
-                  followed ? "border-[#4a9a4a] text-[#4a9a4a] bg-[#f0fff0] cursor-default" : "border-[#ddd] text-[#888] hover:border-[#888] hover:text-[#444]",
+                  "rounded-[3px] border px-[9px] py-[4px] font-mono text-[8px] font-medium uppercase tracking-[0.1em] transition-colors",
+                  followed
+                    ? "cursor-default border-[var(--amber)] bg-[var(--amber-bg)] text-[var(--amber)]"
+                    : "border-[#ddd] text-[#bbb] hover:border-[var(--ink-light)] hover:text-[var(--ink-mid)]",
                 ].join(" ")}
               >
-                {followed ? "✓ Following" : `Follow ${sourceName}`}
+                {followed ? "Following" : `Follow ${sourceName}`}
               </button>
             )}
           </div>

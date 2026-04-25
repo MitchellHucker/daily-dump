@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600&family=Outfit:wght@300;400;500;600&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #e4e2de; font-family: 'Plus Jakarta Sans', sans-serif; padding: 48px 24px 72px; display: flex; flex-direction: column; align-items: center; gap: 20px; }
+.label { font-family: 'Outfit', sans-serif; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: #777; font-weight: 400; }
+.phone { width: 260px; border-radius: 36px; overflow: hidden; box-shadow: 0 32px 64px rgba(0,0,0,0.16), 0 8px 24px rgba(0,0,0,0.08); background: #f7f6f2; }
+.desc { font-size: 11px; color: #999; line-height: 1.55; text-align: center; max-width: 240px; }
+
+:root {
+  --bg: #f7f6f2;
+  --ink: #141210;
+  --ink-light: #999;
+  --ink-ghost: #ccc;
+  --rule: #e8e5de;
+  --amber: #c4712a;
+  --radius: 8px;
+}
+
+.status { display: flex; justify-content: space-between; padding: 13px 20px 3px; font-size: 11px; font-weight: 500; color: var(--ink); }
+
+.body { padding: 48px 24px 40px; display: flex; flex-direction: column; align-items: center; min-height: 500px; }
+
+.logo { font-family: 'Syne', sans-serif; font-size: 32px; font-weight: 800; color: var(--ink); letter-spacing: -1px; line-height: 1; margin-bottom: 6px; }
+.logo span { color: var(--amber); }
+.tagline { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 12px; color: var(--ink-light); text-align: center; line-height: 1.55; font-weight: 300; max-width: 170px; margin: 0 auto 40px; }
+
+.google-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 11px; border-radius: var(--radius); border: 1px solid var(--rule); background: #fff; font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 500; color: var(--ink); margin-bottom: 14px; }
+.google-icon { width: 14px; height: 14px; border-radius: 50%; background: linear-gradient(135deg, #4285f4 25%, #ea4335 25% 50%, #fbbc05 50% 75%, #34a853 75%); flex-shrink: 0; }
+
+.divider { display: flex; align-items: center; gap: 10px; width: 100%; margin-bottom: 14px; }
+.div-line { flex: 1; height: 1px; background: var(--rule); }
+.div-txt { font-size: 10px; color: var(--ink-ghost); font-family: 'Outfit', sans-serif; }
+
+.inp { display: block; width: 100%; padding: 10px 12px; border-radius: var(--radius); border: 1px solid var(--rule); background: #fff; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11px; color: var(--ink-light); margin-bottom: 8px; }
+.inp:last-of-type { margin-bottom: 14px; }
+
+.pri-btn { display: block; width: 100%; padding: 12px; border-radius: var(--radius); background: var(--ink); color: var(--bg); font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-align: center; margin-bottom: 6px; }
+.pri-btn span { color: var(--amber); }
+
+.sign-in-link { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11px; color: var(--ink-light); text-align: center; margin-top: 14px; font-weight: 300; }
+.sign-in-link a { color: var(--amber); font-weight: 500; text-decoration: none; }
+
+.disclaimer { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 9px; color: var(--ink-ghost); text-align: center; margin-top: 20px; line-height: 1.6; font-weight: 300; max-width: 200px; }
+</style>
+</head>
+<body>
+
+<div class="label">01 · Landing / Sign Up</div>
+
+<div class="phone">
+  <div class="status"><span>9:41</span><span>●●●</span></div>
+  <div class="body">
+    <div class="logo">Daily<span>.</span>Dump</div>
+    <div class="tagline">Your news, personalised.<br/>Every morning.</div>
+
+    <div class="google-btn">
+      <div class="google-icon"></div>
+      Continue with Google
+    </div>
+
+    <div class="divider">
+      <div class="div-line"></div>
+      <div class="div-txt">or</div>
+      <div class="div-line"></div>
+    </div>
+
+    <div class="inp">Email address</div>
+    <div class="inp">Password</div>
+
+    <div class="pri-btn">Create account →</div>
+
+    <div class="sign-in-link">Already have an account? <a href="#">Sign in</a></div>
+
+    <div class="disclaimer">By continuing you agree to our Terms of Service and Privacy Policy.</div>
+  </div>
+</div>
+
+<div class="desc">Minimal landing — logo, one-line pitch, Google OAuth or email. Sign in link for returning users. No marketing noise.</div>
+
+</body>
+</html>

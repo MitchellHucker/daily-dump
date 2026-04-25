@@ -21,10 +21,12 @@ export function BriefView({
   return (
     <div>
       {(brief.sections ?? []).map((sec, si) => (
-        <div key={`${sec.id}-${si}`} className="mt-5">
-          <div className="flex items-center gap-[6px] pt-[10px] pb-2 border-t border-[#ddd] font-mono text-[10px] tracking-[0.2em] uppercase text-[#999]">
-            <span>{sec.icon}</span>
-            <span>{sec.label}</span>
+        <div key={`${sec.id}-${si}`} className={si === 0 ? "" : "mt-4"}>
+          <div className="mb-[10px] flex items-center gap-[7px]">
+            <span className="font-mono text-[8px] font-medium uppercase tracking-[0.2em] text-[#bbb]">
+              {sec.icon} {sec.label}
+            </span>
+            <span className="h-px flex-1 bg-[var(--rule)]" />
           </div>
           {sec.stories.map((story, i) => (
             <StoryCard

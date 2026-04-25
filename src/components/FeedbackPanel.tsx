@@ -81,19 +81,19 @@ function PillGroup({
 }) {
   const pillClasses =
     variant === "liked"
-      ? "bg-[#f0fff4] border-[#a8d8b8] text-[#2a6a3a]"
+      ? "bg-[var(--amber-bg)] text-[var(--amber)]"
       : variant === "add"
-        ? "bg-[#f0f4ff] border-[#a8b8e8] text-[#2a3a6a]"
+        ? "bg-[#eeeae2] text-[var(--ink-mid)]"
         : variant === "depth"
-          ? "bg-[#fff8f0] border-[#e8cca8] text-[#6a3a2a]"
-          : "bg-[#fff0f0] border-[#e8a8a8] text-[#6a2a2a]";
+          ? "bg-[#eeeae2] text-[var(--ink-mid)]"
+          : "bg-[#f0ede6] text-[var(--ink-light)]";
 
   return (
     <div className="mb-3">
-      <div className="font-mono text-[9px] tracking-[0.15em] uppercase text-[#bbb] mb-[6px]">{label}</div>
+      <div className="mb-[6px] font-mono text-[9px] uppercase tracking-[0.15em] text-[var(--ink-ghost)]">{label}</div>
       <div className="flex flex-wrap gap-[6px]">
         {items.map((t, i) => (
-          <span key={i} className={["text-xs px-[10px] py-1 border rounded-[2px]", pillClasses].join(" ")}>
+          <span key={i} className={["rounded-[3px] px-[9px] py-[3px] font-mono text-[9px]", pillClasses].join(" ")}>
             {t}
           </span>
         ))}
@@ -120,12 +120,12 @@ export function FeedbackPanel({ profile }: { profile: Profile }) {
   };
 
   return (
-    <div className="mt-10 border-t-2 border-[#111] pt-5">
-      <div className="font-heading text-base font-bold text-[#111] mb-1">Tell us what you want to see more of</div>
-      <div className="font-mono text-[10px] text-[#999] tracking-[0.08em] mb-[14px]">YOUR FEEDBACK SHAPES TOMORROW&apos;S BRIEF</div>
+    <div className="mt-10 border-t border-[var(--rule)] pt-5">
+      <div className="mb-1 font-heading text-[18px] font-bold tracking-[-0.3px] text-[var(--ink)]">Tell us what you want to see more of</div>
+      <div className="mb-[14px] font-mono text-[9px] uppercase tracking-[0.12em] text-[var(--ink-ghost)]">Your feedback shapes tomorrow&apos;s brief</div>
 
       <textarea
-        className="w-full min-h-20 px-[14px] py-3 font-sans text-[13px] text-[#111] bg-white border border-[#ddd] resize-y outline-none leading-[1.6] transition-colors focus:border-[#999] placeholder:text-[#bbb]"
+        className="min-h-24 w-full resize-y rounded-[var(--radius)] border border-[var(--rule)] bg-white px-[14px] py-3 font-sans text-[13px] leading-[1.6] text-[var(--ink)] outline-none transition-colors placeholder:text-[var(--ink-ghost)] focus:border-[var(--ink-light)] disabled:opacity-50"
         placeholder="Anything you liked, missed, or want changed..."
         value={text}
         onChange={(e) => setText(e.target.value)}
@@ -135,8 +135,7 @@ export function FeedbackPanel({ profile }: { profile: Profile }) {
       <div className="flex justify-end mt-2">
         <button
           type="button"
-          className="font-mono text-[11px] tracking-[0.12em] px-5 py-[10px] bg-[#111] text-[#f5f2ed] border-b-[3px] transition-opacity hover:opacity-80 disabled:opacity-30 disabled:cursor-not-allowed"
-          style={{ borderBottomColor: profile.accent }}
+          className="min-h-11 rounded-[var(--radius)] bg-[var(--ink)] px-5 py-[10px] font-mono text-[11px] font-semibold tracking-[0.04em] text-[var(--bg)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-30"
           onClick={submit}
           disabled={!text.trim() || status === "loading"}
         >
@@ -145,14 +144,14 @@ export function FeedbackPanel({ profile }: { profile: Profile }) {
       </div>
 
       {status === "error" && (
-        <div className="mt-3 bg-[#fff8f8] border-l-[3px] border-l-[#cc3333] px-4 py-[14px] font-mono text-[11px] text-[#993333]">
+        <div className="mt-3 rounded-[var(--radius)] border border-[#eed0c7] border-l-2 border-l-[#cc3333] bg-[#fff8f6] px-4 py-[14px] font-sans text-[12px] text-[#993333]">
           Couldn&apos;t process. Try again.
         </div>
       )}
 
       {status === "done" && result && (
-        <div className="mt-5 bg-white border border-[#e0dcd4] p-5 animate-[dailyDumpSlideIn_0.2s_ease-out]">
-          <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-[#999] mb-[14px]">Here&apos;s what we heard</div>
+        <div className="mt-5 animate-[dailyDumpSlideIn_0.2s_ease-out] rounded-[var(--radius)] border border-[var(--rule)] bg-white p-5">
+          <div className="mb-[14px] font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--ink-light)]">Here&apos;s what we heard</div>
 
           {result.liked?.length ? (
             <PillGroup label="Liked" items={result.liked.map((l) => `✓ ${l}`)} variant="liked" />
@@ -169,15 +168,15 @@ export function FeedbackPanel({ profile }: { profile: Profile }) {
 
           {result.summary ? (
             <div>
-              <div className="font-mono text-[9px] tracking-[0.15em] uppercase text-[#999] mb-1">Tomorrow&apos;s brief</div>
-              <div className="text-[13px] text-[#444] leading-[1.6] px-3 py-[10px] border-l-2 border-l-[#111] bg-[#f8f5f0]">
+              <div className="mb-1 font-mono text-[9px] uppercase tracking-[0.15em] text-[var(--ink-light)]">Tomorrow&apos;s brief</div>
+              <div className="border-l-2 border-l-[var(--amber)] bg-[var(--amber-bg)] px-3 py-[10px] font-sans text-[13px] font-light leading-[1.6] text-[var(--ink-mid)]">
                 {result.summary}
               </div>
             </div>
           ) : null}
 
-          <div className="font-mono text-[10px] text-[#bbb] tracking-[0.08em] mt-[14px] text-right">
-            APPLIED · NEXT GENERATION REFLECTS THIS
+          <div className="mt-[14px] text-right font-mono text-[9px] uppercase tracking-[0.08em] text-[var(--ink-ghost)]">
+            Applied · next generation reflects this
           </div>
         </div>
       )}

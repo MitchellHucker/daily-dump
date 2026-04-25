@@ -3,15 +3,14 @@
 import type { Profile } from "../lib/profiles";
 
 function selectedClasses(profileId: string) {
-  if (profileId === "mitchell") return "border-[#c8860a] bg-[rgba(200,134,10,0.10)]";
-  if (profileId === "ralitsa") return "border-[#2a7fa8] bg-[rgba(42,127,168,0.10)]";
-  return "border-[#5a7a5a] bg-[rgba(90,122,90,0.10)]";
+  if (profileId === "mitchell") return "border-[var(--amber)] bg-[var(--amber-bg)] text-[var(--amber)]";
+  if (profileId === "ralitsa") return "border-[var(--amber)] bg-[var(--amber-bg)] text-[var(--amber)]";
+  return "border-[var(--amber)] bg-[var(--amber-bg)] text-[var(--amber)]";
 }
 
 function avatarStyle(profile: Profile) {
-  if (profile.isStub) return { background: "rgba(90,122,90,0.2)", color: "#5a7a5a" };
-  if (profile.id === "mitchell") return { background: "rgba(200,134,10,0.2)", color: "#c8860a" };
-  return { background: "rgba(42,127,168,0.2)", color: "#2a7fa8" };
+  if (profile.isStub) return { background: "#f0ede6", color: "#999" };
+  return { background: "#141210", color: "#f7f6f2" };
 }
 
 export function ProfileBar({
@@ -24,7 +23,7 @@ export function ProfileBar({
   onSelect: (profileId: string) => void;
 }) {
   return (
-    <div className="sticky top-[52px] z-50 border-b border-[#2a2a2a] bg-[#1a1a1a] px-5 py-[10px] flex flex-wrap gap-2">
+    <div className="sticky top-[49px] z-50 flex flex-wrap gap-[6px] border-b border-[var(--rule)] bg-[var(--bg)] px-5 py-[10px]">
       {profiles.map((p) => {
         const isActive = activeProfileId === p.id;
         return (
@@ -33,25 +32,20 @@ export function ProfileBar({
             type="button"
             onClick={() => onSelect(p.id)}
             className={[
-              "flex items-center gap-2 cursor-pointer transition-all duration-150",
-              "border border-[#333] bg-transparent",
-              "px-3 py-[6px] pl-[6px]",
-              "font-sans",
-              "hover:border-[#555]",
-              isActive ? selectedClasses(p.id) : "",
+              "flex min-h-11 cursor-pointer items-center gap-2 rounded-[var(--radius)] border px-3 py-[6px] pl-[6px] transition-colors duration-150",
+              "border-[var(--rule)] bg-white font-sans hover:border-[var(--ink-light)]",
+              isActive ? selectedClasses(p.id) : "text-[var(--ink-mid)]",
             ].join(" ")}
           >
             <div
-              className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 font-mono text-[10px] font-medium"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-medium"
               style={avatarStyle(p)}
             >
               {p.initials}
             </div>
             <div className="text-left">
-              <span className={["text-xs font-medium", p.isStub ? "text-[#8a9a8a]" : "text-[#e0ddd8]"].join(" ")}>
-                {p.name}
-              </span>
-              <span className="block font-mono text-[9px] tracking-[0.08em] text-[#555]">{p.role}</span>
+              <span className="text-[11px] font-medium">{p.name}</span>
+              <span className="block font-mono text-[8px] uppercase tracking-[0.08em] text-[var(--ink-ghost)]">{p.role}</span>
             </div>
           </button>
         );

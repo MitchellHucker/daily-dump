@@ -1,23 +1,41 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f5f2ed;
-  --foreground: #111111;
+  --bg: #f7f6f2;
+  --ink: #141210;
+  --ink-mid: #666;
+  --ink-light: #999;
+  --ink-ghost: #ccc;
+  --rule: #e8e5de;
+  --amber: #c4712a;
+  --amber-bg: rgba(196, 113, 42, 0.06);
+  --radius: 8px;
+  --background: var(--bg);
+  --foreground: var(--ink);
   --card: #ffffff;
-  --border: #e8e4dc;
+  --border: var(--rule);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-bg: var(--bg);
+  --color-ink: var(--ink);
+  --color-ink-mid: var(--ink-mid);
+  --color-ink-light: var(--ink-light);
+  --color-ink-ghost: var(--ink-ghost);
+  --color-rule: var(--rule);
+  --color-amber: var(--amber);
   --font-heading: var(--font-syne);
-  --font-sans: var(--font-dm-sans);
-  --font-mono: var(--font-dm-mono);
+  --font-sans: var(--font-plus-jakarta);
+  --font-mono: var(--font-outfit);
+  --font-ui: var(--font-outfit);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
+  font-family: var(--font-plus-jakarta), sans-serif;
 }
 
 @keyframes dailyDumpSlideIn {

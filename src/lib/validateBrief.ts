@@ -29,36 +29,45 @@ function clampSnap(text: string): string {
   return (lastSpace > 80 ? trimmed.slice(0, lastSpace) : trimmed) + "…";
 }
 
+function asRecord(v: unknown): Record<string, unknown> | null {
+  return v && typeof v === "object" ? (v as Record<string, unknown>) : null;
+}
+
 export function validateBrief(raw: unknown): BriefResponse {
-  if (!raw || typeof raw !== "object") throw new Error("Invalid brief structure returned from model.");
-  const sectionsRaw = (raw as any).sections;
+  const root = asRecord(raw);
+  if (!root) throw new Error("Invalid brief structure returned from model.");
+  const sectionsRaw = root.sections;
   if (!Array.isArray(sectionsRaw)) throw new Error("Invalid brief structure returned from model.");
 
   const sections: Section[] = sectionsRaw
-    .map((sec: any): Section | null => {
-      const id = s(sec?.id);
-      const icon = s(sec?.icon);
-      const label = s(sec?.label);
-      const storiesRaw = sec?.stories;
+    .map((sec): Section | null => {
+      const section = asRecord(sec);
+      if (!section) return null;
+      const id = s(section.id);
+      const icon = s(section.icon);
+      const label = s(section.label);
+      const storiesRaw = section.stories;
       if (!id || !icon || !label || !Array.isArray(storiesRaw)) return null;
 
       const stories: Story[] = storiesRaw
-        .map((story: any): Story | null => {
-          const headline = s(story?.headline);
-          let snap = s(story?.snap);
-          const detail = s(story?.detail);
-          const take = s(story?.take);
-          const source = s(story?.source);
-          const sourceUrl = urlOrEmpty(story?.sourceUrl);
-          const sourceDate = dateOrEmpty(story?.sourceDate);
+        .map((storyRaw): Story | null => {
+          const story = asRecord(storyRaw);
+          if (!story) return null;
+          const headline = s(story.headline);
+          let snap = s(story.snap);
+          const detail = s(story.detail);
+          const take = s(story.take);
+          const source = s(story.source);
+          const sourceUrl = urlOrEmpty(story.sourceUrl);
+          const sourceDate = dateOrEmpty(story.sourceDate);
 
           if (!headline) return null;
           if (!snap || !detail) return null; // avoid “pre-expanded” rendering failures
 
           snap = clampSnap(snap);
 
-          const entities = Array.isArray(story?.entities)
-            ? (story.entities as unknown[])
+          const entities = Array.isArray(story.entities)
+            ? story.entities
                 .map((e) => s(e))
                 .filter(Boolean)
                 .slice(0, MAX_ENTITIES)
