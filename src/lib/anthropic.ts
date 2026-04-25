@@ -3,6 +3,8 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import type { BriefResponse } from "./types";
 import { PROFILES, type ProfileId } from "./profiles";
+import { buildSearchPlan, formatResultsForPrompt } from "./searchContext";
+import { searchTopic } from "./tavily";
 
 const briefTool: Anthropic.Tool = {
   name: "deliver_brief",
@@ -81,13 +83,18 @@ function assertRealProfile(profileId: ProfileId) {
 
 export async function generateBrief(profileId: ProfileId): Promise<BriefResponse> {
   const profile = assertRealProfile(profileId);
-  const prompt = profile.prompt();
+  const searchPlan = buildSearchPlan(profile);
+  const topicResults = await Promise.all(
+    searchPlan.map((item) => searchTopic(item.query, item.section.id, item.section.label, { days: item.days })),
+  );
+  const contextBlock = formatResultsForPrompt(topicResults);
+  const prompt = `${profile.prompt()}\n\n---\n\nHere are today's articles to draw from:\n\n${contextBlock}`;
 
   const client = getClient();
   const response = await client.messages.create({
     model: "claude-sonnet-4-5",
     max_tokens: 6000,
-    tools: [{ type: "web_search_20250305", name: "web_search" }, briefTool],
+    tools: [briefTool],
     tool_choice: { type: "tool", name: "deliver_brief" },
     messages: [{ role: "user", content: prompt }],
   });

@@ -27,7 +27,9 @@ export const PROFILES: Record<"mitchell" | "ralitsa" | "preview", Profile> = {
       { id: "australia", icon: "🦘", label: "Australia" },
     ],
     prompt() {
-      return `You are a personal news editor. Search the web for news from the last 24 hours. Write a morning brief for Mitchell — a Product Manager at a LegalTech/FinTech startup in London, relocating to Australia. Interested in AI, startups, markets, and geopolitics.
+      return `You are a personal news editor. Write a morning brief for Mitchell — a Product Manager at a LegalTech/FinTech startup in London, relocating to Australia. Interested in AI, startups, markets, and geopolitics.
+
+You are given a curated set of today's articles for each section below. Use only those articles as your sources. Do not search the web. If an article is not recent enough or not relevant, skip it — do not fabricate stories. Only include a section if fresh articles have been provided for it. If a section has no articles, omit it entirely from the brief — it is better to deliver a shorter brief with fewer sections than to include stale or invented content. Preserve the article URL in sourceUrl. Where an article has a published date, include it in sourceDate as YYYY-MM-DD only.
 
 Cover these sections in order:
 SECTION: ⚡ | AI & Tech | tech — AI releases, startup news, interesting new products
@@ -55,7 +57,9 @@ SECTION: 🦘 | Australia | australia — visa/immigration changes, UK-to-Austra
       { id: "ai", icon: "🤖", label: "AI at Enterprise Scale" },
     ],
     prompt() {
-      return `You are a personal news editor. Search the web for news from the last 24 hours. Write a morning brief for Ralitsa — senior Category Manager for IT and Professional Services at a large insurance company. C-suite framing. Strategic intelligence, not operational detail.
+      return `You are a personal news editor. Write a morning brief for Ralitsa — senior Category Manager for IT and Professional Services at a large insurance company. C-suite framing. Strategic intelligence, not operational detail.
+
+You are given a curated set of today's articles for each section below. Use only those articles as your sources. Do not search the web. If an article is not recent enough or not relevant, skip it — do not fabricate stories. Only include a section if fresh articles have been provided for it. If a section has no articles, omit it entirely from the brief — it is better to deliver a shorter brief with fewer sections than to include stale or invented content. Preserve the article URL in sourceUrl. Where an article has a published date, include it in sourceDate as YYYY-MM-DD only.
 
 Key focus: Broadcom/VMware, Microsoft (Power BI to Fabric transition, Copilot pricing), Oracle, SAP commercial changes; chip/hardware supply; outcome-based pricing shifts across the vendor market; tariffs and supply chain risk for a UK insurer. Include percentage price changes and timelines where available.
 

@@ -71,9 +71,14 @@ Some features require API keys that are never stored in Git. Create a file calle
 ```
 # Required for feedback extraction (Phase 1 - moves server-side in Phase 3)
 NEXT_PUBLIC_ANTHROPIC_API_KEY=your_key_here
+
+# Required for real brief generation
+ANTHROPIC_API_KEY=sk-ant-...
+TAVILY_API_KEY=tvly-...
 ```
 
 Get your Anthropic API key from [console.anthropic.com](https://console.anthropic.com) → API Keys.
+Get your Tavily API key from [tavily.com](https://tavily.com). Tavily is used for article retrieval before Anthropic synthesises the brief.
 
 **Important:** `.env.local` is listed in `.gitignore` and must never be committed to GitHub. Each developer maintains their own copy locally.
 
