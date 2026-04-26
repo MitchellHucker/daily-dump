@@ -3,6 +3,8 @@ import "server-only";
 const TAVILY_BASE = "https://api.tavily.com";
 const DEFAULT_DAYS = 2;
 const DEFAULT_MAX_RESULTS = 6;
+const MAX_RESULT_AGE_DAYS = 7;
+const SEARCH_DEPTH = "advanced";
 
 export interface TavilyResult {
   title: string;
@@ -44,6 +46,22 @@ function asString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function freshnessCutoff() {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - MAX_RESULT_AGE_DAYS);
+  return cutoff;
+}
+
+function isFreshOrUndated(result: TavilyResultPayload, cutoff: Date): boolean {
+  const publishedDate = asString(result.published_date);
+  if (!publishedDate) return true;
+
+  const publishedAt = new Date(publishedDate);
+  if (Number.isNaN(publishedAt.getTime())) return false;
+
+  return publishedAt >= cutoff;
+}
+
 function mapResult(result: TavilyResultPayload): TavilyResult | null {
   const title = asString(result.title);
   const url = asString(result.url);
@@ -66,6 +84,9 @@ export async function searchTopic(
   topic: string,
   options: TavilySearchOptions = {},
 ): Promise<TopicResults> {
+  const days = options.days ?? DEFAULT_DAYS;
+  const maxResults = options.maxResults ?? DEFAULT_MAX_RESULTS;
+
   const response = await fetch(`${TAVILY_BASE}/search`, {
     method: "POST",
     headers: {
@@ -74,9 +95,9 @@ export async function searchTopic(
     },
     body: JSON.stringify({
       query,
-      search_depth: "advanced",
-      max_results: options.maxResults ?? DEFAULT_MAX_RESULTS,
-      days: options.days ?? DEFAULT_DAYS,
+      search_depth: SEARCH_DEPTH,
+      max_results: maxResults,
+      days,
       include_answer: false,
       include_raw_content: false,
     }),
@@ -88,7 +109,10 @@ export async function searchTopic(
   }
 
   const data = (await response.json()) as TavilyResponsePayload;
-  const results = Array.isArray(data.results) ? data.results.map(mapResult).filter(Boolean) : [];
+  const rawResults = Array.isArray(data.results) ? data.results : [];
+
+  const cutoff = freshnessCutoff();
+  const results = rawResults.filter((result) => isFreshOrUndated(result, cutoff)).map(mapResult).filter(Boolean);
 
   return {
     topic,
