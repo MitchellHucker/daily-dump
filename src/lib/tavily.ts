@@ -96,6 +96,7 @@ export async function searchTopic(
     body: JSON.stringify({
       query,
       search_depth: SEARCH_DEPTH,
+      topic: "news",
       max_results: maxResults,
       days,
       include_answer: false,
