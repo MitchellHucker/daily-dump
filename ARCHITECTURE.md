@@ -11,6 +11,7 @@ Phase status:
 - **Phase 2**: server-side generation via `/api/generate` (API key stays server-side)
 - **Phase 2.1**: streaming progress updates during generation (SSE)
 - **Phase 2.4**: Tavily replaces Anthropic web search to reduce input tokens and generation cost
+- **Phase 3.0.1**: Clerk auth, sign-in/sign-up routes, protected `/brief` and `/onboarding`
 
 ## Key flows
 
@@ -36,9 +37,20 @@ Real profiles use a two-stage server-side generation flow:
 
 Anthropic's hosted web search tool is no longer included in the generation request.
 
+### Authentication (Phase 3.0.1)
+
+Clerk handles authentication. `src/app/layout.tsx` wraps the app with `ClerkProvider`.
+
+Auth routes use Clerk's path routing and must stay catch-all routes:
+- `src/app/sign-in/[[...rest]]/page.tsx`
+- `src/app/sign-up/[[...rest]]/page.tsx`
+
+Next.js 16 uses `src/proxy.ts` instead of `src/middleware.ts`. The proxy protects `/brief` and `/onboarding`, and redirects signed-in users from `/` to `/brief`.
+
 ## Runtime boundaries (what runs where)
 
 - **Client UI**: `src/app/page.tsx` (React client component)
+- **Auth shell**: `src/app/layout.tsx`, `src/proxy.ts`, `src/app/sign-in/[[...rest]]/page.tsx`, `src/app/sign-up/[[...rest]]/page.tsx`
 - **Server/Edge generation route**: `src/app/api/generate/route.ts`
   - Runs on **Edge runtime**
   - Holds the secret API key server-side
@@ -59,6 +71,8 @@ Anthropic returns structured data by filling the `deliver_brief` tool schema. Th
 ## Key files (start here)
 
 - UI entry: `src/app/page.tsx`
+- Auth proxy: `src/proxy.ts`
+- Auth routes: `src/app/sign-in/[[...rest]]/page.tsx`, `src/app/sign-up/[[...rest]]/page.tsx`
 - API route: `src/app/api/generate/route.ts`
 - Streaming Anthropic wrapper: `src/lib/anthropicStream.ts`
 - Non-streaming Anthropic wrapper: `src/lib/anthropic.ts`
@@ -78,6 +92,10 @@ Anthropic returns structured data by filling the `deliver_brief` tool schema. Th
   - In `.env.local` for local dev
   - In Vercel project environment variables for deployment
   - Never expose to the browser (no `NEXT_PUBLIC_` prefix)
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`
+  - Required for Clerk authentication outside keyless development mode
+- `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in`, `NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/brief`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/brief`
+  - Keep Clerk redirects aligned with the catch-all auth routes
 
 Note: `NEXT_PUBLIC_ANTHROPIC_API_KEY` may still exist for `FeedbackPanel` (planned to move server-side later).
 
@@ -112,4 +130,6 @@ npm run build
 - **Raw content must stay off**: keep `include_raw_content: false`; sending full article text defeats the Phase 2.4 cost reduction.
 - **Edge + SSE headers**: avoid forbidden headers (e.g. `Connection: keep-alive`).
 - **Client streaming**: do not use `response.json()` for SSE — must read `response.body` incrementally.
+- **Next 16 auth proxy**: use `src/proxy.ts`, not `src/middleware.ts`.
+- **Clerk path routing**: `<SignIn />` and `<SignUp />` must live under catch-all routes (`[[...rest]]`) when using `routing="path"`.
 

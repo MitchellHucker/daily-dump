@@ -1,5 +1,6 @@
 "use client";
 
+import { UserButton } from "@clerk/nextjs";
 import { useCallback, useState, useSyncExternalStore } from "react";
 import { BriefView } from "@/components/BriefView";
 import { FeedbackPanel } from "@/components/FeedbackPanel";
@@ -52,7 +53,7 @@ function parseSseFrames(chunk: string): { frames: SseFrame[]; rest: string } {
   return { frames, rest };
 }
 
-function AppHeader({ today, initials }: { today: string; initials: string }) {
+function AppHeader({ today }: { today: string }) {
   return (
     <header className="sticky top-0 z-[100] flex items-center justify-between border-b border-[var(--rule)] bg-[var(--bg)] px-5 py-[11px]">
       <div className="font-heading text-[18px] font-extrabold tracking-[-0.4px]">
@@ -60,9 +61,7 @@ function AppHeader({ today, initials }: { today: string; initials: string }) {
       </div>
       <div className="flex items-center gap-2">
         <div className="font-mono text-[9px] uppercase tracking-[0.08em] text-[var(--ink-ghost)]">{today}</div>
-        <div className="flex h-[26px] w-[26px] items-center justify-center rounded-full bg-[var(--ink)] font-mono text-[9px] font-semibold text-[var(--bg)]">
-          {initials}
-        </div>
+        <UserButton />
       </div>
     </header>
   );
@@ -222,11 +221,10 @@ export default function BriefPage() {
   };
 
   const firstName = profile?.name.split(" ")[0] ?? "there";
-  const initials = profile?.initials ?? "MH";
 
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--ink)]">
-      <AppHeader today={today} initials={initials} />
+      <AppHeader today={today} />
 
       <ProfileBar profiles={Object.values(PROFILES)} activeProfileId={active} onSelect={select} />
 

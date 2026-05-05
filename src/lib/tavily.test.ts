@@ -53,6 +53,7 @@ describe("searchTopic", () => {
     expect(body).toEqual({
       query: "AI news",
       search_depth: "advanced",
+      topic: "news",
       max_results: 6,
       days: 3,
       include_answer: false,
