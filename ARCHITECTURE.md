@@ -12,6 +12,8 @@ Phase status:
 - **Phase 2.1**: streaming progress updates during generation (SSE)
 - **Phase 2.4**: Tavily replaces Anthropic web search to reduce input tokens and generation cost
 - **Phase 3.0.1**: Clerk auth, sign-in/sign-up routes, protected `/brief` and `/onboarding`
+- **Phase 3.0.2**: Supabase service client + lazy Clerk user sync into `users`
+- **Phase 3.0.3**: generated briefs cached in Supabase with UTC daily reset
 
 ## Key flows
 
@@ -47,10 +49,33 @@ Auth routes use Clerk's path routing and must stay catch-all routes:
 
 Next.js 16 uses `src/proxy.ts` instead of `src/middleware.ts`. The proxy protects `/brief` and `/onboarding`, and redirects signed-in users from `/` to `/brief`.
 
+### User sync (Phase 3.0.2)
+
+Supabase stores app user records. `src/lib/supabase.ts` exports a server-only service-role client and must never be imported by client components.
+
+When a signed-in user lands on `/brief`, `src/app/brief/page.tsx` runs as a server wrapper, calls `syncCurrentUser()` from `src/lib/userSync.ts`, then renders the unchanged client brief UI in `src/app/brief/BriefClient.tsx`.
+
+`syncCurrentUser()` creates or updates the matching `users` row:
+- `id`: Clerk user ID
+- `email`: Clerk primary email
+- `name`: Clerk display name fallback
+- `dev_mode`: set to `false` only on first insert, preserving dashboard changes later
+
+### Brief cache (Phase 3.0.3)
+
+Generated briefs are stored in the Supabase `briefs` table. The daily cache key is the UTC calendar date (`YYYY-MM-DD`), not a rolling 24-hour window.
+
+- `GET /api/briefs` returns today's cached brief, the latest dump, the immediately prior dump, the current UTC date key, and the user's `dev_mode` flag.
+- `POST /api/generate` checks today's cache before generating. If a cached brief exists, it streams that brief back as the `complete` event.
+- Normal successful generation validates the model output and inserts it into `briefs`.
+- Dev-mode force regenerate bypasses today's cache and inserts a new brief row. The UI shows the latest dump as current and the immediately prior row as the previous dump.
+
 ## Runtime boundaries (what runs where)
 
 - **Client UI**: `src/app/page.tsx` (React client component)
 - **Auth shell**: `src/app/layout.tsx`, `src/proxy.ts`, `src/app/sign-in/[[...rest]]/page.tsx`, `src/app/sign-up/[[...rest]]/page.tsx`
+- **User sync**: `src/app/brief/page.tsx`, `src/app/brief/BriefClient.tsx`, `src/lib/userSync.ts`, `src/lib/supabase.ts`
+- **Brief cache**: `src/app/api/briefs/route.ts`, `src/lib/briefCache.ts`
 - **Server/Edge generation route**: `src/app/api/generate/route.ts`
   - Runs on **Edge runtime**
   - Holds the secret API key server-side
@@ -73,6 +98,12 @@ Anthropic returns structured data by filling the `deliver_brief` tool schema. Th
 - UI entry: `src/app/page.tsx`
 - Auth proxy: `src/proxy.ts`
 - Auth routes: `src/app/sign-in/[[...rest]]/page.tsx`, `src/app/sign-up/[[...rest]]/page.tsx`
+- Brief server wrapper: `src/app/brief/page.tsx`
+- Brief client UI: `src/app/brief/BriefClient.tsx`
+- Supabase client: `src/lib/supabase.ts`
+- User sync: `src/lib/userSync.ts`
+- Brief cache helpers: `src/lib/briefCache.ts`
+- Brief cache API: `src/app/api/briefs/route.ts`
 - API route: `src/app/api/generate/route.ts`
 - Streaming Anthropic wrapper: `src/lib/anthropicStream.ts`
 - Non-streaming Anthropic wrapper: `src/lib/anthropic.ts`
@@ -96,6 +127,11 @@ Anthropic returns structured data by filling the `deliver_brief` tool schema. Th
   - Required for Clerk authentication outside keyless development mode
 - `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in`, `NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/brief`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/brief`
   - Keep Clerk redirects aligned with the catch-all auth routes
+- `NEXT_PUBLIC_SUPABASE_URL`
+  - Supabase project URL
+- `SUPABASE_SERVICE_ROLE_KEY` (server-side only)
+  - Used by `src/lib/supabase.ts` for backend writes that bypass RLS
+  - Never expose to the browser (no `NEXT_PUBLIC_` prefix)
 
 Note: `NEXT_PUBLIC_ANTHROPIC_API_KEY` may still exist for `FeedbackPanel` (planned to move server-side later).
 
@@ -132,4 +168,6 @@ npm run build
 - **Client streaming**: do not use `response.json()` for SSE — must read `response.body` incrementally.
 - **Next 16 auth proxy**: use `src/proxy.ts`, not `src/middleware.ts`.
 - **Clerk path routing**: `<SignIn />` and `<SignUp />` must live under catch-all routes (`[[...rest]]`) when using `routing="path"`.
+- **Supabase service role**: keep `SUPABASE_SERVICE_ROLE_KEY` server-only; import `src/lib/supabase.ts` only from server code.
+- **Brief cache date**: use UTC `YYYY-MM-DD` consistently for `briefs.date` and reset countdowns.
 

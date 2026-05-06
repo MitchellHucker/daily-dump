@@ -1,5 +1,7 @@
 import { streamBrief } from "@/lib/anthropicStream";
+import { getTodayBrief, getUserDevMode, getUtcDateKey, saveTodayBrief } from "@/lib/briefCache";
 import type { ProfileId } from "@/lib/profiles";
+import { syncCurrentUser } from "@/lib/userSync";
 import { validateBrief } from "@/lib/validateBrief";
 
 export const runtime = "edge";
@@ -7,6 +9,7 @@ export const dynamic = "force-dynamic";
 
 type GenerateBody = {
   profileId?: string;
+  forceRegenerate?: boolean;
 };
 
 const REAL_PROFILE_IDS = new Set<ProfileId>(["mitchell", "ralitsa"]);
@@ -32,6 +35,19 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid profileId." }, { status: 400 });
   }
 
+  const user = await syncCurrentUser();
+  if (!user) {
+    return Response.json({ error: "Unauthorized." }, { status: 401 });
+  }
+
+  const forceRegenerate = body.forceRegenerate === true;
+  const todayDate = getUtcDateKey();
+  const devMode = await getUserDevMode(user.id);
+
+  if (forceRegenerate && !devMode) {
+    return Response.json({ error: "Force regenerate is only available in dev mode." }, { status: 403 });
+  }
+
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
@@ -55,12 +71,23 @@ export async function POST(request: Request) {
 
       (async () => {
         try {
+          if (!forceRegenerate) {
+            const cachedBrief = await getTodayBrief(user.id, todayDate);
+            if (cachedBrief) {
+              controller.enqueue(encoder.encode(sseEvent("status", "Loaded today's cached brief.")));
+              controller.enqueue(encoder.encode(sseEvent("complete", JSON.stringify(cachedBrief.content))));
+              controller.close();
+              return;
+            }
+          }
+
           for await (const ev of streamBrief(profileId as ProfileId, { signal: request.signal })) {
             if (ev.type === "status") {
               const frame = sseEvent("status", ev.message);
               controller.enqueue(encoder.encode(frame));
             } else if (ev.type === "complete") {
               const validated = validateBrief(ev.brief);
+              await saveTodayBrief(user.id, validated, todayDate);
               const payload = JSON.stringify(validated);
               const frame = sseEvent("complete", payload);
               controller.enqueue(encoder.encode(frame));
