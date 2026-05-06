@@ -1,3 +1,5 @@
+import { TOPIC_OPTIONS_BY_ID, type ProfileTopicPreference } from "./onboarding";
+
 export type ProfileSection = { id: string; icon: string; label: string };
 
 export type Profile = {
@@ -9,6 +11,7 @@ export type Profile = {
   sections: ProfileSection[];
   prompt: () => string;
   isStub?: boolean;
+  topicPreferences?: ProfileTopicPreference[];
 };
 
 export const PROFILES: Record<"mitchell" | "ralitsa" | "preview", Profile> = {
@@ -93,5 +96,54 @@ export type RealProfileId = Exclude<ProfileId, "preview">;
 
 export function getProfile(profileId: ProfileId): Profile {
   return PROFILES[profileId];
+}
+
+function getFirstName(name: string) {
+  return name.trim().split(/\s+/)[0] || "You";
+}
+
+export function buildUserProfileProfile({
+  name,
+  topics,
+}: {
+  name: string | null;
+  topics: ProfileTopicPreference[];
+}): Profile {
+  const displayName = name?.trim() || "You";
+  const firstName = getFirstName(displayName);
+
+  return {
+    id: "user",
+    name: displayName,
+    initials: "DD",
+    role: "Personalised brief",
+    accent: "#c8860a",
+    topicPreferences: topics,
+    sections: topics.map((topic) => ({
+      id: topic.id,
+      icon: TOPIC_OPTIONS_BY_ID[topic.id]?.icon ?? "•",
+      label: topic.label,
+    })),
+    prompt() {
+      const sectionLines = topics
+        .map((topic) => {
+          const option = TOPIC_OPTIONS_BY_ID[topic.id];
+          const icon = option?.icon ?? "•";
+          const interests = topic.interests.length ? ` Interests: ${topic.interests.join(", ")}.` : " Broad general coverage for this topic.";
+          const lens = topic.lens ? ` Lens: ${topic.lens}` : "";
+          return `SECTION: ${icon} | ${topic.label} | ${topic.id} — ${topic.label} news today.${interests}${lens}`;
+        })
+        .join("\n");
+
+      return `You are a personal news editor. Write a morning brief for ${displayName}.
+
+You are given a curated set of today's articles for each section below. Use only those articles as your sources. Do not search the web. If an article is not recent enough or not relevant, skip it — do not fabricate stories. Some articles may not have a published date. Treat these with caution — only include them if the content clearly references very recent events. If an undated article appears to be from a predictions piece, annual review, or any content suggesting it was written months ago, skip it. Only include a section if fresh articles have been provided for it. If a section has no articles, omit it entirely from the brief — it is better to deliver a shorter brief with fewer sections than to include stale or invented content. Preserve the article URL in sourceUrl. Where an article has a published date, include it in sourceDate as YYYY-MM-DD only.
+
+Cover these sections in order:
+${sectionLines}
+
+2-3 stories per section. Use ${firstName}'s take: for the TAKE field. Concise. No waffle.`;
+    },
+  };
 }
 

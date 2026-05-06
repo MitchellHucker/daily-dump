@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { ProfileTopicPreference } from "./onboarding";
 
 type Database = {
   public: {
@@ -33,19 +34,19 @@ type Database = {
         Row: {
           id: string;
           user_id: string | null;
-          topics: unknown;
+          topics: ProfileTopicPreference[];
           updated_at: string | null;
         };
         Insert: {
           id?: string;
           user_id?: string | null;
-          topics?: unknown;
+          topics?: ProfileTopicPreference[];
           updated_at?: string | null;
         };
         Update: {
           id?: string;
           user_id?: string | null;
-          topics?: unknown;
+          topics?: ProfileTopicPreference[];
           updated_at?: string | null;
         };
         Relationships: [];

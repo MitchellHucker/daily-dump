@@ -2,7 +2,7 @@ import "server-only";
 
 import Anthropic from "@anthropic-ai/sdk";
 import type { BriefResponse } from "./types";
-import { PROFILES, type ProfileId } from "./profiles";
+import { PROFILES, type Profile, type ProfileId } from "./profiles";
 import { buildSearchPlan, formatResultsForPrompt } from "./searchContext";
 import { searchTopic } from "./tavily";
 
@@ -85,11 +85,17 @@ function assertRealProfile(profileId: ProfileId) {
   return profile;
 }
 
+function resolveProfile(profileInput: ProfileId | Profile) {
+  if (typeof profileInput === "string") return assertRealProfile(profileInput);
+  if (profileInput.isStub) throw new Error("Stub profile is not eligible for generation.");
+  return profileInput;
+}
+
 export async function* streamBrief(
-  profileId: ProfileId,
+  profileInput: ProfileId | Profile,
   opts?: { signal?: AbortSignal },
 ): AsyncGenerator<StreamEvent, void, void> {
-  const profile = assertRealProfile(profileId);
+  const profile = resolveProfile(profileInput);
   const searchPlan = buildSearchPlan(profile);
 
   for (const item of searchPlan) {

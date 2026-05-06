@@ -2,7 +2,7 @@ import "server-only";
 
 import Anthropic from "@anthropic-ai/sdk";
 import type { BriefResponse } from "./types";
-import { PROFILES, type ProfileId } from "./profiles";
+import { PROFILES, type Profile, type ProfileId } from "./profiles";
 import { buildSearchPlan, formatResultsForPrompt } from "./searchContext";
 import { searchTopic } from "./tavily";
 
@@ -81,8 +81,14 @@ function assertRealProfile(profileId: ProfileId) {
   return profile;
 }
 
-export async function generateBrief(profileId: ProfileId): Promise<BriefResponse> {
-  const profile = assertRealProfile(profileId);
+function resolveProfile(profileInput: ProfileId | Profile) {
+  if (typeof profileInput === "string") return assertRealProfile(profileInput);
+  if (profileInput.isStub) throw new Error("Stub profile is not eligible for generation.");
+  return profileInput;
+}
+
+export async function generateBrief(profileInput: ProfileId | Profile): Promise<BriefResponse> {
+  const profile = resolveProfile(profileInput);
   const searchPlan = buildSearchPlan(profile);
   const topicResults = await Promise.all(
     searchPlan.map((item) => searchTopic(item.query, item.section.id, item.section.label, { days: item.days })),

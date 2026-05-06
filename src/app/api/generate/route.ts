@@ -1,7 +1,8 @@
 import { streamBrief } from "@/lib/anthropicStream";
 import { getTodayBrief, getUserDevMode, getUtcDateKey, saveTodayBrief } from "@/lib/briefCache";
-import type { ProfileId } from "@/lib/profiles";
+import { buildUserProfileProfile, type Profile, type ProfileId } from "@/lib/profiles";
 import { syncCurrentUser } from "@/lib/userSync";
+import { getUserProfile } from "@/lib/userProfile";
 import { validateBrief } from "@/lib/validateBrief";
 
 export const runtime = "edge";
@@ -28,10 +29,7 @@ export async function POST(request: Request) {
   }
 
   const profileId = body.profileId;
-  if (!profileId || typeof profileId !== "string") {
-    return Response.json({ error: "Missing profileId." }, { status: 400 });
-  }
-  if (!REAL_PROFILE_IDS.has(profileId as ProfileId)) {
+  if (profileId !== undefined && typeof profileId !== "string") {
     return Response.json({ error: "Invalid profileId." }, { status: 400 });
   }
 
@@ -46,6 +44,23 @@ export async function POST(request: Request) {
 
   if (forceRegenerate && !devMode) {
     return Response.json({ error: "Force regenerate is only available in dev mode." }, { status: 403 });
+  }
+
+  let generationProfile: ProfileId | Profile;
+  if (profileId) {
+    if (!REAL_PROFILE_IDS.has(profileId as ProfileId)) {
+      return Response.json({ error: "Invalid profileId." }, { status: 400 });
+    }
+    if (!devMode) {
+      return Response.json({ error: "Profile selection is only available in dev mode." }, { status: 403 });
+    }
+    generationProfile = profileId as ProfileId;
+  } else {
+    const storedProfile = await getUserProfile(user.id);
+    if (!storedProfile || storedProfile.topics.length === 0) {
+      return Response.json({ error: "Complete onboarding before generating a brief." }, { status: 409 });
+    }
+    generationProfile = buildUserProfileProfile({ name: user.name, topics: storedProfile.topics });
   }
 
   const encoder = new TextEncoder();
@@ -81,7 +96,7 @@ export async function POST(request: Request) {
             }
           }
 
-          for await (const ev of streamBrief(profileId as ProfileId, { signal: request.signal })) {
+          for await (const ev of streamBrief(generationProfile, { signal: request.signal })) {
             if (ev.type === "status") {
               const frame = sseEvent("status", ev.message);
               controller.enqueue(encoder.encode(frame));

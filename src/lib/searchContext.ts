@@ -25,6 +25,13 @@ export type SearchPlanItem = {
 };
 
 export function buildSearchQuery(section: ProfileSection, profile: Profile): string {
+  const preference = profile.topicPreferences?.find((topic) => topic.id === section.id);
+  if (preference) {
+    const interests = preference.interests.join(" ");
+    const lens = preference.lens.trim();
+    return [preference.label, interests, lens, "news today"].filter(Boolean).join(" ");
+  }
+
   return SECTION_QUERIES[`${profile.id}:${section.id}`] ?? `${section.label} news today`;
 }
 

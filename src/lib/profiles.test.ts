@@ -1,4 +1,4 @@
-import { PROFILES } from "./profiles";
+import { buildUserProfileProfile, PROFILES } from "./profiles";
 
 describe("profiles prompt builder", () => {
   test("Mitchell prompt includes expected section headers", () => {
@@ -19,6 +19,26 @@ describe("profiles prompt builder", () => {
 
   test("Preview prompt is empty", () => {
     expect(PROFILES.preview.prompt("FORMAT")).toBe("");
+  });
+
+  test("dynamic user profile prompt uses selected topics without hardcoded defaults", () => {
+    const profile = buildUserProfileProfile({
+      name: "Avery Example",
+      topics: [
+        { id: "technology", label: "Technology", interests: ["AI"], lens: "LegalTech startups" },
+        { id: "finance", label: "Finance", interests: [], lens: "" },
+      ],
+    });
+
+    expect(profile.sections).toEqual([
+      { id: "technology", icon: "⚡", label: "Technology" },
+      { id: "finance", icon: "📈", label: "Finance" },
+    ]);
+    expect(profile.prompt()).toContain("Write a morning brief for Avery Example");
+    expect(profile.prompt()).toContain("SECTION: ⚡ | Technology | technology");
+    expect(profile.prompt()).toContain("Interests: AI");
+    expect(profile.prompt()).toContain("Lens: LegalTech startups");
+    expect(profile.prompt()).toContain("Broad general coverage for this topic");
   });
 });
 

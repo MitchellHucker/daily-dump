@@ -1,5 +1,5 @@
 import { buildSearchPlan, buildSearchQuery, formatResultsForPrompt } from "./searchContext";
-import { PROFILES } from "./profiles";
+import { buildUserProfileProfile, PROFILES } from "./profiles";
 
 describe("search context helpers", () => {
   test("builds profile-specific queries for shared section ids", () => {
@@ -21,6 +21,19 @@ describe("search context helpers", () => {
       days: 2,
     });
     expect(plan[0].query).toContain("AI");
+  });
+
+  test("builds dynamic queries from saved topic preferences", () => {
+    const profile = buildUserProfileProfile({
+      name: "Avery",
+      topics: [{ id: "technology", label: "Technology", interests: ["AI"], lens: "LegalTech startups" }],
+    });
+
+    expect(buildSearchPlan(profile)[0]).toMatchObject({
+      section: { id: "technology", icon: "⚡", label: "Technology" },
+      query: "Technology AI LegalTech startups news today",
+      days: 2,
+    });
   });
 
   test("formats populated and empty Tavily results for the prompt", () => {

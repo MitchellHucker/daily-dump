@@ -7,7 +7,8 @@ import { FeedbackPanel } from "@/components/FeedbackPanel";
 import { NudgeCard } from "@/components/NudgeCard";
 import { ProfileBar } from "@/components/ProfileBar";
 import { useInteractionTracker } from "@/lib/interactions";
-import { PROFILES } from "@/lib/profiles";
+import { TOPIC_OPTIONS_BY_ID, type ProfileTopicPreference } from "@/lib/onboarding";
+import { PROFILES, type Profile } from "@/lib/profiles";
 import { STUB_BRIEF, type Brief } from "@/lib/stubs";
 
 type Status = "idle" | "loading" | "done" | "error";
@@ -27,6 +28,24 @@ type BriefsResponse = {
   currentBrief: CachedBrief | null;
   previousBrief: CachedBrief | null;
   devMode: boolean;
+};
+
+type UserProfileResponse = {
+  profile: {
+    topics: ProfileTopicPreference[];
+  } | null;
+};
+
+const USER_PROFILE_ID = "user-profile";
+
+const USER_PROFILE_BUTTON: Profile = {
+  id: USER_PROFILE_ID,
+  name: "Your Profile",
+  initials: "YP",
+  role: "Saved onboarding topics",
+  accent: "#c8860a",
+  sections: [],
+  prompt: () => "",
 };
 
 function formatToday() {
@@ -91,13 +110,18 @@ function parseSseFrames(chunk: string): { frames: SseFrame[]; rest: string } {
   return { frames, rest };
 }
 
-function AppHeader({ today }: { today: string }) {
+function AppHeader({ today, devMode }: { today: string; devMode: boolean }) {
   return (
     <header className="sticky top-0 z-[100] flex items-center justify-between border-b border-[var(--rule)] bg-[var(--bg)] px-5 py-[11px]">
       <div className="font-heading text-[18px] font-extrabold tracking-[-0.4px]">
         Daily<span className="text-[var(--amber)]">.</span>Dump
       </div>
       <div className="flex items-center gap-2">
+        {devMode ? (
+          <div className="rounded-full border border-[var(--amber)] bg-[var(--amber-bg)] px-2 py-[5px] font-mono text-[8px] font-semibold uppercase tracking-[0.12em] text-[var(--amber)]">
+            Dev mode
+          </div>
+        ) : null}
         <div className="font-mono text-[9px] uppercase tracking-[0.08em] text-[var(--ink-ghost)]">{today}</div>
         <UserButton />
       </div>
@@ -106,7 +130,7 @@ function AppHeader({ today }: { today: string }) {
 }
 
 export function BriefClient() {
-  const [active, setActive] = useState<string | null>("mitchell");
+  const [active, setActive] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("idle");
   const [brief, setBrief] = useState<Brief | null>(null);
   const [err, setErr] = useState("");
@@ -118,6 +142,7 @@ export function BriefClient() {
   const [currentBrief, setCurrentBrief] = useState<CachedBrief | null>(null);
   const [previousBrief, setPreviousBrief] = useState<CachedBrief | null>(null);
   const [devMode, setDevMode] = useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfileResponse["profile"]>(null);
   const [todayDate, setTodayDate] = useState("");
   const [resetCountdown, setResetCountdown] = useState(formatUtcResetCountdown);
   const [dismissedNudges, setDismissedNudges] = useState<Set<string>>(new Set());
@@ -127,7 +152,8 @@ export function BriefClient() {
 
   const { track, getNudge, dismissNudge } = useInteractionTracker();
 
-  const profile = active ? PROFILES[active as keyof typeof PROFILES] : null;
+  const activeProfile = devMode && active && active !== USER_PROFILE_ID ? PROFILES[active as keyof typeof PROFILES] : null;
+  const canForceRegenerate = devMode && active !== "preview";
   const acceptedCount = Object.keys(nudgeAccepted).length;
 
   useEffect(() => {
@@ -136,14 +162,21 @@ export function BriefClient() {
     async function loadBriefs() {
       setIsCacheLoading(true);
       try {
-        const res = await fetch("/api/briefs", { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const [briefsRes, profileRes] = await Promise.all([
+          fetch("/api/briefs", { cache: "no-store" }),
+          fetch("/api/profile", { cache: "no-store" }),
+        ]);
+        if (!briefsRes.ok) throw new Error(`HTTP ${briefsRes.status}`);
+        if (!profileRes.ok) throw new Error(`HTTP ${profileRes.status}`);
 
-        const data = (await res.json()) as BriefsResponse;
+        const data = (await briefsRes.json()) as BriefsResponse;
+        const profileData = (await profileRes.json()) as UserProfileResponse;
         if (cancelled) return;
 
         setTodayDate(data.date);
         setDevMode(data.devMode);
+        setUserProfile(profileData.profile);
+        if (data.devMode && profileData.profile) setActive((prev) => prev ?? USER_PROFILE_ID);
         setCurrentBrief(data.currentBrief);
         setPreviousBrief(data.previousBrief);
 
@@ -237,23 +270,24 @@ export function BriefClient() {
   const select = (id: string) => {
     if (active === id) return;
     setActive(id);
-    setStatus("idle");
-    setBrief(null);
+    if (status !== "done") {
+      setStatus("idle");
+      setBrief(null);
+    }
     setNudgeKey(null);
     setErr("");
     setLiveStatus("");
   };
 
   const generate = async ({ forceRegenerate = false }: { forceRegenerate?: boolean } = {}) => {
-    if (!active) return;
-    const p = PROFILES[active as keyof typeof PROFILES];
+    const p = activeProfile;
     setStatus("loading");
     setBrief(null);
     setErr("");
     setNudgeKey(null);
     setLiveStatus("Starting…");
 
-    if (p.isStub) {
+    if (p?.isStub) {
       setTimeout(() => {
         setBrief(STUB_BRIEF);
         setGenTime(new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }));
@@ -268,7 +302,7 @@ export function BriefClient() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profileId: p.id, forceRegenerate }),
+        body: JSON.stringify({ profileId: p?.id, forceRegenerate }),
         signal: aborter.signal,
       });
 
@@ -328,13 +362,19 @@ export function BriefClient() {
     }
   };
 
-  const firstName = profile?.name.split(" ")[0] ?? "there";
+  const firstName = activeProfile?.name.split(" ")[0] ?? "there";
 
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--ink)]">
-      <AppHeader today={today} />
+      <AppHeader today={today} devMode={devMode} />
 
-      <ProfileBar profiles={Object.values(PROFILES)} activeProfileId={active} onSelect={select} />
+      {devMode ? (
+        <ProfileBar
+          profiles={userProfile ? [USER_PROFILE_BUTTON, ...Object.values(PROFILES)] : Object.values(PROFILES)}
+          activeProfileId={active}
+          onSelect={select}
+        />
+      ) : null}
 
       <main className="mx-auto max-w-[680px] px-5 pb-20 pt-5">
         {isCacheLoading && status === "idle" ? (
@@ -344,7 +384,7 @@ export function BriefClient() {
           </div>
         ) : null}
 
-        {active && !isCacheLoading && status === "idle" && profile && (
+        {!isCacheLoading && status === "idle" && userProfile && (
           <div>
             <div className="mb-1 font-heading text-[28px] font-bold tracking-[-0.5px]">Morning, {firstName}.</div>
             <p className="mb-5 font-sans text-[13px] font-light text-[var(--ink-light)]">Your brief is ready to generate.</p>
@@ -357,18 +397,20 @@ export function BriefClient() {
             </button>
             <div className="rounded-[var(--radius)] bg-[#f0ede6] px-[14px] py-3">
               <div className="mb-2 font-mono text-[8px] font-medium uppercase tracking-[0.16em] text-[var(--ink-ghost)]">Your topics</div>
-              <div className="border-b border-[#e8e4dc] py-[7px]">
-                <div className="font-sans text-[11px] font-medium leading-[1.35] text-[var(--ink-mid)]">⚡ Technology · AI, LegalTech</div>
-                <div className="font-sans text-[10px] font-light leading-[1.4] text-[var(--ink-ghost)]">Personalised daily news lens</div>
-              </div>
-              <div className="border-b border-[#e8e4dc] py-[7px]">
-                <div className="font-sans text-[11px] font-medium leading-[1.35] text-[var(--ink-mid)]">📈 Finance · Markets</div>
-                <div className="font-sans text-[10px] font-light leading-[1.4] text-[var(--ink-ghost)]">Macro, companies, and commercial signals</div>
-              </div>
-              <div className="pt-[7px]">
-                <div className="font-sans text-[11px] font-medium leading-[1.35] text-[var(--ink-mid)]">🌍 Geopolitics</div>
-                <div className="font-sans text-[10px] font-light leading-[1.4] text-[var(--ink-ghost)]">Major world events and downstream impact</div>
-              </div>
+              {userProfile.topics.map((topic, index) => {
+                const option = TOPIC_OPTIONS_BY_ID[topic.id];
+                return (
+                  <div key={topic.id} className={index === userProfile.topics.length - 1 ? "py-[7px]" : "border-b border-[#e8e4dc] py-[7px]"}>
+                    <div className="font-sans text-[11px] font-medium leading-[1.35] text-[var(--ink-mid)]">
+                      {option?.icon ?? "•"} {topic.label}
+                      {topic.interests.length ? ` · ${topic.interests.join(", ")}` : ""}
+                    </div>
+                    <div className="font-sans text-[10px] font-light leading-[1.4] text-[var(--ink-ghost)]">
+                      {topic.lens || "Broad general coverage"}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -398,13 +440,13 @@ export function BriefClient() {
           </div>
         )}
 
-        {status === "done" && brief && profile && (
+        {status === "done" && brief && userProfile && (
           <div>
             <div className="mb-3 flex justify-between font-mono text-[9px] uppercase tracking-[0.06em] text-[var(--ink-ghost)]">
               <span>
-                {profile.isStub ? "Preview Brief" : `${firstName}'s Brief`}
-                {profile.isStub ? <span className="ml-2 text-[var(--amber)]">Stub</span> : null}
-                {!profile.isStub && acceptedCount > 0 ? <span className="ml-2 text-[var(--amber)]" title="Personalisation active">•</span> : null}
+                {activeProfile?.isStub ? "Preview Brief" : "Latest dump"}
+                {activeProfile?.isStub ? <span className="ml-2 text-[var(--amber)]">Stub</span> : null}
+                {!activeProfile?.isStub && acceptedCount > 0 ? <span className="ml-2 text-[var(--amber)]" title="Personalisation active">•</span> : null}
               </span>
               <span>{genTime}</span>
             </div>
@@ -424,13 +466,13 @@ export function BriefClient() {
                   Generate today&apos;s brief
                 </button>
               )}
-              {devMode && !profile.isStub ? (
+              {canForceRegenerate ? (
                 <button
                   type="button"
                   className="min-h-11 rounded-[var(--radius)] border border-[var(--amber)] bg-transparent px-4 py-[8px] font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--amber)] transition-opacity hover:opacity-80"
                   onClick={() => generate({ forceRegenerate: true })}
                 >
-                  Force regenerate
+                  Force regenerate latest
                 </button>
               ) : null}
             </div>
@@ -473,7 +515,7 @@ export function BriefClient() {
               </div>
             ) : null}
 
-            {!profile.isStub ? <FeedbackPanel profile={profile} /> : null}
+            {activeProfile && !activeProfile.isStub ? <FeedbackPanel profile={activeProfile} /> : null}
 
             <div className="mt-6 rounded-[var(--radius)] border border-[var(--rule)] p-[14px] font-sans text-[10px] font-light leading-[1.7] text-[var(--ink-ghost)]">
               AI-generated from live web sources. Not financial, legal, or professional advice. Always verify before acting.

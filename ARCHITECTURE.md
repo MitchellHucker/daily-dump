@@ -14,6 +14,8 @@ Phase status:
 - **Phase 3.0.1**: Clerk auth, sign-in/sign-up routes, protected `/brief` and `/onboarding`
 - **Phase 3.0.2**: Supabase service client + lazy Clerk user sync into `users`
 - **Phase 3.0.3**: generated briefs cached in Supabase with UTC daily reset
+- **Phase 3.0.4**: onboarding stores topic preferences in `profiles` and generation uses stored profiles
+- **Phase 3.0.5**: dev mode badge, test profile switcher, and force regenerate controls
 
 ## Key flows
 
@@ -70,12 +72,39 @@ Generated briefs are stored in the Supabase `briefs` table. The daily cache key 
 - Normal successful generation validates the model output and inserts it into `briefs`.
 - Dev-mode force regenerate bypasses today's cache and inserts a new brief row. The UI shows the latest dump as current and the immediately prior row as the previous dump.
 
+### Onboarding and profiles (Phase 3.0.4)
+
+Users without a `profiles` row are redirected from `/brief` to `/onboarding/topics`. Onboarding is protected and server-gated: users who already have a profile are redirected back to `/brief`.
+
+The onboarding flow stores a draft in browser session storage until confirmation:
+- `/onboarding/topics`: select 1-3 topics from the configured topic list, including Hobbies.
+- `/onboarding/refine`: optionally select interests and add a free-text lens per topic.
+- `/onboarding/confirm`: save preferences via `POST /api/profile`, then redirect to `/brief`.
+
+Stored `profiles.topics` entries use:
+
+```json
+{ "id": "technology", "label": "Technology", "interests": ["AI"], "lens": "LegalTech startups" }
+```
+
+`POST /api/generate` now uses the current user's stored profile by default. Explicit hardcoded `profileId` generation is restricted to users with `dev_mode = true`.
+
+### Dev mode (Phase 3.0.5)
+
+`users.dev_mode` is managed manually in Supabase. When true, the brief page shows a `Dev mode` badge, a profile switcher, and force-regenerate controls.
+
+The dev switcher includes `Your Profile` plus the legacy Mitchell, Ralitsa, and Preview profiles. `Your Profile` uses the saved `profiles.topics` row; Mitchell and Ralitsa use hardcoded prompts; Preview returns the local stub.
+
+Force regenerate is available only in dev mode for real generation modes (`Your Profile`, Mitchell, Ralitsa). It bypasses today's cache and writes a new `briefs` row, preserving the latest-dump history behavior agreed during Phase 3.0.3.
+
 ## Runtime boundaries (what runs where)
 
 - **Client UI**: `src/app/page.tsx` (React client component)
 - **Auth shell**: `src/app/layout.tsx`, `src/proxy.ts`, `src/app/sign-in/[[...rest]]/page.tsx`, `src/app/sign-up/[[...rest]]/page.tsx`
 - **User sync**: `src/app/brief/page.tsx`, `src/app/brief/BriefClient.tsx`, `src/lib/userSync.ts`, `src/lib/supabase.ts`
 - **Brief cache**: `src/app/api/briefs/route.ts`, `src/lib/briefCache.ts`
+- **Onboarding/profile persistence**: `src/app/onboarding/**`, `src/app/api/profile/route.ts`, `src/lib/onboarding.ts`, `src/lib/userProfile.ts`
+- **Dev mode UI**: `src/app/brief/BriefClient.tsx`, `src/components/ProfileBar.tsx`
 - **Server/Edge generation route**: `src/app/api/generate/route.ts`
   - Runs on **Edge runtime**
   - Holds the secret API key server-side
@@ -104,6 +133,10 @@ Anthropic returns structured data by filling the `deliver_brief` tool schema. Th
 - User sync: `src/lib/userSync.ts`
 - Brief cache helpers: `src/lib/briefCache.ts`
 - Brief cache API: `src/app/api/briefs/route.ts`
+- Onboarding topic definitions: `src/lib/onboarding.ts`
+- User profile helpers: `src/lib/userProfile.ts`
+- User profile API: `src/app/api/profile/route.ts`
+- Onboarding screens: `src/app/onboarding/topics/page.tsx`, `src/app/onboarding/refine/page.tsx`, `src/app/onboarding/confirm/page.tsx`
 - API route: `src/app/api/generate/route.ts`
 - Streaming Anthropic wrapper: `src/lib/anthropicStream.ts`
 - Non-streaming Anthropic wrapper: `src/lib/anthropic.ts`
@@ -170,4 +203,6 @@ npm run build
 - **Clerk path routing**: `<SignIn />` and `<SignUp />` must live under catch-all routes (`[[...rest]]`) when using `routing="path"`.
 - **Supabase service role**: keep `SUPABASE_SERVICE_ROLE_KEY` server-only; import `src/lib/supabase.ts` only from server code.
 - **Brief cache date**: use UTC `YYYY-MM-DD` consistently for `briefs.date` and reset countdowns.
+- **Onboarding draft storage**: onboarding draft state is temporary browser session storage; the database write happens on confirmation.
+- **Dev force regenerate**: current behavior intentionally persists force-regenerated briefs as new rows, even though the original 3.0.5 scope said client-only.
 

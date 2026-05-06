@@ -12,10 +12,14 @@ jest.mock("@/lib/briefCache", () => ({
   getUtcDateKey: jest.fn(),
   saveTodayBrief: jest.fn(),
 }));
+jest.mock("@/lib/userProfile", () => ({
+  getUserProfile: jest.fn(),
+}));
 
 import { streamBrief } from "@/lib/anthropicStream";
 import { getTodayBrief, getUserDevMode, getUtcDateKey, saveTodayBrief } from "@/lib/briefCache";
 import { syncCurrentUser } from "@/lib/userSync";
+import { getUserProfile } from "@/lib/userProfile";
 
 const streamBriefMock = streamBrief as jest.Mock;
 const syncCurrentUserMock = syncCurrentUser as jest.Mock;
@@ -23,6 +27,7 @@ const getTodayBriefMock = getTodayBrief as jest.Mock;
 const getUserDevModeMock = getUserDevMode as jest.Mock;
 const getUtcDateKeyMock = getUtcDateKey as jest.Mock;
 const saveTodayBriefMock = saveTodayBrief as jest.Mock;
+const getUserProfileMock = getUserProfile as jest.Mock;
 
 async function readResponseBody(res: Response) {
   const reader = res.body?.getReader();
@@ -46,11 +51,19 @@ describe("/api/generate route", () => {
     getUserDevModeMock.mockResolvedValue(false);
     getUtcDateKeyMock.mockReturnValue("2026-05-06");
     saveTodayBriefMock.mockResolvedValue(null);
+    getUserProfileMock.mockResolvedValue({
+      id: "profile_1",
+      user_id: "user_123",
+      topics: [{ id: "technology", label: "Technology", interests: ["AI"], lens: "LegalTech startups" }],
+      updated_at: "2026-05-06T08:00:00Z",
+    });
   });
 
-  test("returns 400 for missing profileId", async () => {
+  test("returns 409 when no stored profile exists", async () => {
+    getUserProfileMock.mockResolvedValue(null);
+
     const res = await POST({ json: async () => ({}), signal: new AbortController().signal } as unknown as Request);
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(409);
   });
 
   test("returns 400 for invalid profileId", async () => {
@@ -60,12 +73,18 @@ describe("/api/generate route", () => {
     expect(res.status).toBe(400);
   });
 
-  test("returns 401 when no Clerk user is signed in", async () => {
-    syncCurrentUserMock.mockResolvedValue(null);
-
+  test("rejects hardcoded profile selection when the user is not in dev mode", async () => {
     const res = await POST(
       { json: async () => ({ profileId: "mitchell" }), signal: new AbortController().signal } as unknown as Request,
     );
+
+    expect(res.status).toBe(403);
+  });
+
+  test("returns 401 when no Clerk user is signed in", async () => {
+    syncCurrentUserMock.mockResolvedValue(null);
+
+    const res = await POST({ json: async () => ({}), signal: new AbortController().signal } as unknown as Request);
 
     expect(res.status).toBe(401);
   });
@@ -98,9 +117,7 @@ describe("/api/generate route", () => {
       };
     });
 
-    const res = await POST(
-      { json: async () => ({ profileId: "mitchell" }), signal: new AbortController().signal } as unknown as Request,
-    );
+    const res = await POST({ json: async () => ({}), signal: new AbortController().signal } as unknown as Request);
     expect(res.status).toBe(200);
     expect((res as unknown as { headers?: Record<string, string> }).headers?.["Content-Type"]).toContain("text/event-stream");
 
@@ -127,9 +144,7 @@ describe("/api/generate route", () => {
       },
     });
 
-    const res = await POST(
-      { json: async () => ({ profileId: "mitchell" }), signal: new AbortController().signal } as unknown as Request,
-    );
+    const res = await POST({ json: async () => ({}), signal: new AbortController().signal } as unknown as Request);
 
     const body = await readResponseBody(res);
     expect(body).toContain("Loaded today's cached brief.");
@@ -141,7 +156,7 @@ describe("/api/generate route", () => {
   test("rejects force regenerate when the user is not in dev mode", async () => {
     const res = await POST(
       {
-        json: async () => ({ profileId: "mitchell", forceRegenerate: true }),
+        json: async () => ({ forceRegenerate: true }),
         signal: new AbortController().signal,
       } as unknown as Request,
     );
@@ -169,7 +184,7 @@ describe("/api/generate route", () => {
 
     const res = await POST(
       {
-        json: async () => ({ profileId: "mitchell", forceRegenerate: true }),
+        json: async () => ({ forceRegenerate: true }),
         signal: new AbortController().signal,
       } as unknown as Request,
     );
@@ -189,7 +204,7 @@ describe("/api/generate route", () => {
     });
 
     const res = await POST(
-      { json: async () => ({ profileId: "ralitsa" }), signal: new AbortController().signal } as unknown as Request,
+      { json: async () => ({}), signal: new AbortController().signal } as unknown as Request,
     );
     expect(res.status).toBe(200);
     await expect(readResponseBody(res)).resolves.toContain("event: error");
