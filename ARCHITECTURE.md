@@ -105,6 +105,7 @@ Force regenerate is available only in dev mode for real generation modes (`Your 
 - **Brief cache**: `src/app/api/briefs/route.ts`, `src/lib/briefCache.ts`
 - **Onboarding/profile persistence**: `src/app/onboarding/**`, `src/app/api/profile/route.ts`, `src/lib/onboarding.ts`, `src/lib/userProfile.ts`
 - **Dev mode UI**: `src/app/brief/BriefClient.tsx`, `src/components/ProfileBar.tsx`
+- **Feedback extraction**: `src/components/FeedbackPanel.tsx`, `src/app/api/feedback/route.ts`, `src/lib/feedbackExtraction.ts`
 - **Server/Edge generation route**: `src/app/api/generate/route.ts`
   - Runs on **Edge runtime**
   - Holds the secret API key server-side
@@ -136,6 +137,8 @@ Anthropic returns structured data by filling the `deliver_brief` tool schema. Th
 - Onboarding topic definitions: `src/lib/onboarding.ts`
 - User profile helpers: `src/lib/userProfile.ts`
 - User profile API: `src/app/api/profile/route.ts`
+- Feedback extraction API: `src/app/api/feedback/route.ts`
+- Feedback extraction helper: `src/lib/feedbackExtraction.ts`
 - Onboarding screens: `src/app/onboarding/topics/page.tsx`, `src/app/onboarding/refine/page.tsx`, `src/app/onboarding/confirm/page.tsx`
 - API route: `src/app/api/generate/route.ts`
 - Streaming Anthropic wrapper: `src/lib/anthropicStream.ts`
@@ -165,8 +168,6 @@ Anthropic returns structured data by filling the `deliver_brief` tool schema. Th
 - `SUPABASE_SERVICE_ROLE_KEY` (server-side only)
   - Used by `src/lib/supabase.ts` for backend writes that bypass RLS
   - Never expose to the browser (no `NEXT_PUBLIC_` prefix)
-
-Note: `NEXT_PUBLIC_ANTHROPIC_API_KEY` may still exist for `FeedbackPanel` (planned to move server-side later).
 
 ## Testing
 

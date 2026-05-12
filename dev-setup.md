@@ -69,10 +69,7 @@ Opens the app at [http://localhost:3000](http://localhost:3000). The server stay
 Some features require API keys that are never stored in Git. Create a file called `.env.local` at the project root (same level as `package.json`) and add the relevant keys:
 
 ```
-# Required for feedback extraction (Phase 1 - moves server-side in Phase 3)
-NEXT_PUBLIC_ANTHROPIC_API_KEY=your_key_here
-
-# Required for real brief generation
+# Required for brief generation and feedback extraction
 ANTHROPIC_API_KEY=sk-ant-...
 TAVILY_API_KEY=tvly-...
 ```

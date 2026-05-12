@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import type { Profile } from "../lib/profiles";
 
 type FeedbackExtraction = {
   liked?: string[];
@@ -11,42 +10,13 @@ type FeedbackExtraction = {
   summary?: string;
 };
 
-type AnthropicResponse = {
-  content?: Array<{ type: string; text?: string }>;
-};
-
 async function extractProfileUpdates(feedbackText: string, profileName: string): Promise<FeedbackExtraction> {
-  const apiKey = process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("Missing NEXT_PUBLIC_ANTHROPIC_API_KEY");
-
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const res = await fetch("/api/feedback", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1000,
-      messages: [
-        {
-          role: "user",
-          content: `A user named ${profileName} gave this feedback on their morning news brief:
-
-"${feedbackText}"
-
-Extract structured signals. Return ONLY valid JSON:
-
-{
-  "liked": ["brief descriptions of what they responded to positively"],
-  "add_topics": ["new topics, vendors, or content types to add"],
-  "more_depth_on": ["areas where they want more detail or numbers"],
-  "remove_or_reduce": ["anything they want less of"],
-  "summary": "One sentence: what changes in their brief tomorrow."
-}`,
-        },
-      ],
+      feedbackText,
+      profileName,
     }),
   });
 
@@ -55,19 +25,9 @@ Extract structured signals. Return ONLY valid JSON:
     throw new Error(e?.error?.message || `HTTP ${res.status}`);
   }
 
-  const data: unknown = await res.json();
-  const content = (data as AnthropicResponse)?.content;
-  const raw = Array.isArray(content)
-    ? content
-        .filter((b) => b?.type === "text" && typeof b.text === "string")
-        .map((b) => b.text)
-        .join("")
-    : "";
-  const cleaned = String(raw).replace(/```json|```/g, "").trim();
-  const s = cleaned.indexOf("{");
-  const e = cleaned.lastIndexOf("}");
-  if (s === -1 || e === -1) throw new Error("Could not parse JSON from model output.");
-  return JSON.parse(cleaned.slice(s, e + 1));
+  const data = (await res.json()) as { extraction?: FeedbackExtraction };
+  if (!data.extraction) throw new Error("Missing feedback extraction.");
+  return data.extraction;
 }
 
 function PillGroup({
@@ -102,7 +62,7 @@ function PillGroup({
   );
 }
 
-export function FeedbackPanel({ profile }: { profile: Profile }) {
+export function FeedbackPanel({ profileName }: { profileName: string }) {
   const [text, setText] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [result, setResult] = useState<FeedbackExtraction | null>(null);
@@ -111,7 +71,7 @@ export function FeedbackPanel({ profile }: { profile: Profile }) {
     if (!text.trim()) return;
     setStatus("loading");
     try {
-      const parsed = await extractProfileUpdates(text, profile.name);
+      const parsed = await extractProfileUpdates(text, profileName);
       setResult(parsed);
       setStatus("done");
     } catch {
@@ -130,18 +90,37 @@ export function FeedbackPanel({ profile }: { profile: Profile }) {
         value={text}
         onChange={(e) => setText(e.target.value)}
         disabled={status === "loading"}
+        aria-busy={status === "loading"}
       />
 
-      <div className="flex justify-end mt-2">
+      <div className="mt-3 flex flex-col items-end gap-2 sm:flex-row sm:items-center sm:justify-end">
         <button
           type="button"
           className="min-h-11 rounded-[var(--radius)] bg-[var(--ink)] px-5 py-[10px] font-mono text-[11px] font-semibold tracking-[0.04em] text-[var(--bg)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-30"
           onClick={submit}
           disabled={!text.trim() || status === "loading"}
         >
-          {status === "loading" ? "Processing..." : "Save →"}
+          {status === "loading" ? "Working…" : "Save →"}
         </button>
       </div>
+
+      {status === "loading" && (
+        <div
+          role="status"
+          className="mt-4 flex items-start gap-3 rounded-[var(--radius)] border border-[var(--rule)] bg-[#f7f6f2] px-4 py-3"
+        >
+          <div
+            className="mt-[2px] h-8 w-8 shrink-0 animate-[dailyDumpSpin_0.8s_linear_infinite] rounded-full border-2 border-[var(--rule)] border-t-[var(--amber)]"
+            aria-hidden
+          />
+          <div>
+            <div className="font-mono text-[9px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-mid)]">Processing your feedback</div>
+            <div className="mt-1 font-sans text-[12px] font-light leading-[1.55] text-[var(--ink-mid)]">
+              Extracting what to keep, add, deepen, or trim — usually a few seconds.
+            </div>
+          </div>
+        </div>
+      )}
 
       {status === "error" && (
         <div className="mt-3 rounded-[var(--radius)] border border-[#eed0c7] border-l-2 border-l-[#cc3333] bg-[#fff8f6] px-4 py-[14px] font-sans text-[12px] text-[#993333]">

@@ -18,12 +18,12 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 You can start editing the page by modifying `src/app/page.tsx`. The page auto-updates as you edit the file.
 
-## Feedback extraction (Phase 1)
+## Environment variables
 
-To enable the Feedback panel’s Anthropic extraction call in local dev, create a `.env.local` file in the repo root:
+Anthropic calls run server-side. Create a `.env.local` file in the repo root:
 
 ```bash
-NEXT_PUBLIC_ANTHROPIC_API_KEY=your_key_here
+ANTHROPIC_API_KEY=your_key_here
 ```
 
 Do not commit `.env.local`.

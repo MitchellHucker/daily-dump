@@ -222,6 +222,19 @@ Hobbies: Gaming, Sport, Music, Film & TV, Books, Food & Drink, Travel, Fitness, 
 
 ---
 
+### Tech debt follow-up — FeedbackPanel API key exposure ✅ COMPLETE
+
+**Decisions made during implementation:**
+
+- Feedback extraction now runs through `POST /api/feedback` instead of calling Anthropic directly from the browser
+- `FeedbackPanel` no longer reads any Anthropic environment variable client-side
+- The server route authenticates the current Clerk user before extraction
+- The Anthropic call uses the existing server-only `ANTHROPIC_API_KEY`
+- The extraction response is returned to the client in the same shape the panel already renders
+- Feedback submissions are still not persisted to Supabase; that remains deferred to Phase 4
+
+---
+
 ## What does not change in Phase 3
 
 - Brief output format and parser — untouched

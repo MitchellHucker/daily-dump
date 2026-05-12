@@ -1,6 +1,6 @@
 "use client";
 
-import { UserButton } from "@clerk/nextjs";
+import { UserButton, useUser } from "@clerk/nextjs";
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { BriefView } from "@/components/BriefView";
 import { FeedbackPanel } from "@/components/FeedbackPanel";
@@ -130,6 +130,7 @@ function AppHeader({ today, devMode }: { today: string; devMode: boolean }) {
 }
 
 export function BriefClient() {
+  const { user } = useUser();
   const [active, setActive] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("idle");
   const [brief, setBrief] = useState<Brief | null>(null);
@@ -155,6 +156,25 @@ export function BriefClient() {
   const activeProfile = devMode && active && active !== USER_PROFILE_ID ? PROFILES[active as keyof typeof PROFILES] : null;
   const canForceRegenerate = devMode && active !== "preview";
   const acceptedCount = Object.keys(nudgeAccepted).length;
+
+  const clerkFeedbackName =
+    user?.fullName?.trim() ||
+    [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim() ||
+    user?.primaryEmailAddress?.emailAddress?.split("@")[0] ||
+    "You";
+
+  const feedbackProfileName =
+    devMode && active === "preview"
+      ? PROFILES.preview.name
+      : devMode && active === "mitchell"
+        ? PROFILES.mitchell.name
+        : devMode && active === "ralitsa"
+          ? PROFILES.ralitsa.name
+          : clerkFeedbackName;
+
+  /** Preview stub can complete without a saved onboarding profile — still show brief + feedback. */
+  const showBriefComplete =
+    status === "done" && brief && (Boolean(userProfile) || Boolean(devMode && active === "preview"));
 
   useEffect(() => {
     let cancelled = false;
@@ -440,7 +460,7 @@ export function BriefClient() {
           </div>
         )}
 
-        {status === "done" && brief && userProfile && (
+        {showBriefComplete ? (
           <div>
             <div className="mb-3 flex justify-between font-mono text-[9px] uppercase tracking-[0.06em] text-[var(--ink-ghost)]">
               <span>
@@ -515,14 +535,14 @@ export function BriefClient() {
               </div>
             ) : null}
 
-            {activeProfile && !activeProfile.isStub ? <FeedbackPanel profile={activeProfile} /> : null}
+            <FeedbackPanel profileName={feedbackProfileName} />
 
             <div className="mt-6 rounded-[var(--radius)] border border-[var(--rule)] p-[14px] font-sans text-[10px] font-light leading-[1.7] text-[var(--ink-ghost)]">
               AI-generated from live web sources. Not financial, legal, or professional advice. Always verify before acting.
               Personalisation tracks topic engagement — not source lean.
             </div>
           </div>
-        )}
+        ) : null}
       </main>
     </div>
   );

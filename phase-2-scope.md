@@ -54,7 +54,7 @@ Note: **no** `NEXT_PUBLIC_` prefix. This key is server-side only and must never 
 Add the same key to Vercel for the live deployment:
 Vercel dashboard → daily-dump project → Settings → Environment Variables → Add `ANTHROPIC_API_KEY`.
 
-The existing `NEXT_PUBLIC_ANTHROPIC_API_KEY` used by FeedbackPanel can remain for now — that moves server-side in Phase 3.
+FeedbackPanel extraction now uses the server-side `ANTHROPIC_API_KEY`; Anthropic keys must not be exposed to the browser.
 
 ---
 
