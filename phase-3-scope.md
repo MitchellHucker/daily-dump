@@ -394,6 +394,17 @@ The extraction call should return structured JSON containing the overview (verba
 
 ---
 
+#### Implementation Notes (Phase 3.2 — shipped)
+
+**What shipped**
+- Landing value proposition on `src/app/page.tsx`: morning-ritual hook (coffee / toothbrush) from workshop direction; second line anchors **Daily.**Dump branding (amber dot) and payoff **delivers balanced perspectives — personalised news you actually anticipate.**
+- Column shell uses `min-h-[min(620px,100dvh)]` so short viewports centre content without trapping excessive empty space below the fold relative to older fixed `620px`; primary CTA and sign-in link remain immediately after the proposition.
+
+**Decisions**
+- Replaced legacy “Your news, personalised…” pair with integrated value prop block to satisfy **one cohesive two-line hero** constraint at ~390px width (`max-w-[300px]`, forced line break after the hook).
+
+---
+
 ### Phase 3.3 — General news loading state (shared cache)
 
 **What:** While a user's personalised brief is generating (~20-30 seconds), show 3-4 general world news articles they can read immediately. These are not personalised — they are the same for every user on a given day.

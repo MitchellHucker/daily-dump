@@ -3,16 +3,15 @@ import Link from "next/link";
 export default function Home() {
   return (
     <main className="min-h-screen bg-[var(--bg)] text-[var(--ink)] flex items-center justify-center px-6 py-10">
-      <div className="w-full max-w-[360px] min-h-[620px] flex flex-col items-center justify-center">
+      <div className="flex min-h-[min(620px,100dvh)] w-full max-w-[360px] flex-col items-center justify-center pb-6 pt-4">
         <div className="font-heading text-[42px] font-extrabold tracking-[-1.2px] leading-none mb-[6px]">
           Daily<span className="text-[var(--amber)]">.</span>Dump
         </div>
-        <p className="font-sans text-[14px] leading-[1.55] font-light text-[var(--ink-light)] text-center max-w-[210px] mb-10">
-          Your news, personalised.
+        <p className="mb-6 max-w-[320px] text-center font-sans text-[16px] font-light leading-normal text-[#666]">
+          Whether you start your day with a coffee
           <br />
-          Every morning.
+          {" or in the bathroom - look forward to waking up."}
         </p>
-
         <Link
           href="/sign-up"
           prefetch={false}

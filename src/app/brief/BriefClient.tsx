@@ -493,7 +493,7 @@ export function BriefClient() {
               {hasTodayBrief ? (
                 <div className="rounded-[var(--radius)] border border-[var(--rule)] bg-[#f0ede6] px-4 py-[9px] text-right font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--ink-light)]">
                   Already generated today
-                  <span className="ml-2 text-[var(--ink-ghost)]">Resets in {resetCountdown} UTC</span>
+                  <span className="ml-2 normal-case text-[var(--ink-ghost)]">Resets in {resetCountdown}</span>
                 </div>
               ) : (
                 <button
