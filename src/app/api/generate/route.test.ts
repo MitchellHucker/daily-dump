@@ -55,6 +55,7 @@ describe("/api/generate route", () => {
       id: "profile_1",
       user_id: "user_123",
       topics: [{ id: "technology", label: "Technology", interests: ["AI"], lens: "LegalTech startups" }],
+      overview: null,
       updated_at: "2026-05-06T08:00:00Z",
     });
   });

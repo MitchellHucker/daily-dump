@@ -31,8 +31,8 @@ NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_...
 CLERK_SECRET_KEY=sk_...
 NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
 NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
-NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/brief
-NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/onboarding
+NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/auth/continue
+NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/auth/continue
 ```
 
 ### Supabase
@@ -356,6 +356,23 @@ The extraction call should return structured JSON containing the overview (verba
 ---
 
 **What does not change:** All Phase 3 auth infrastructure, the `briefs` table, the generation route, and Clerk integration remain identical. The only schema change is adding the `overview` column to `profiles`. The `topics` jsonb column structure is unchanged.
+
+---
+
+#### Implementation Notes (Phase 3.1 — shipped)
+
+**What shipped**
+- `/onboarding` free-text capture, Haiku extraction via forced tool use (`extract_onboarding_profile` in `src/lib/onboardingExtraction.ts`), session keys in `src/lib/onboarding.ts`, `/onboarding/review` for edits, then `POST /api/profile` with optional `overview` (omit on later updates to preserve existing).
+- `profiles.overview` in types and `getUserProfile` / `saveUserProfile`; generation passes overview into `buildUserProfileProfile` (`User context:` prefix).
+- Brief and sign-up entry paths send new users through `/onboarding`; manual grid remains at `/onboarding/topics`.
+
+**Decisions**
+- Overview stored is the user's text (edited on review), not echoed from the model — Haiku output is topics/interests/lenses only; simpler and avoids double-truth.
+- When sanitisation yields no valid topics after extraction, `mergeExtractedTopics` falls back to technology / geopolitics / finance and sets `needsReview` so the review screen can show a banner.
+
+**Ops**
+- Run `alter table profiles add column overview text;` on Supabase if not already applied.
+- Set `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/auth/continue` and `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/auth/continue` on Vercel. The continue route sends users with a profile to `/brief` and users without one to `/onboarding`.
 
 ---
 

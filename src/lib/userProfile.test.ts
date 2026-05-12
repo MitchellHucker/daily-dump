@@ -44,6 +44,7 @@ describe("user profile helpers", () => {
       id: "profile_1",
       user_id: "user_1",
       topics: [{ id: "technology", label: "Technology", interests: ["AI"], lens: "Lens" }],
+      overview: null,
       updated_at: "2026-05-06T08:00:00Z",
     });
     expect(query.eq).toHaveBeenCalledWith("user_id", "user_1");
@@ -71,6 +72,7 @@ describe("user profile helpers", () => {
         id: "profile_1",
         user_id: "user_1",
         topics: [{ id: "technology", label: "Technology", interests: ["AI"], lens: "" }],
+        overview: null,
         updated_at: "2026-05-06T08:00:00Z",
       },
       error: null,
@@ -84,6 +86,7 @@ describe("user profile helpers", () => {
       expect.objectContaining({
         user_id: "user_1",
         topics: [{ id: "technology", label: "Technology", interests: ["AI"], lens: "" }],
+        overview: null,
       }),
     );
   });
@@ -94,6 +97,7 @@ describe("user profile helpers", () => {
         id: "profile_1",
         user_id: "user_1",
         topics: [{ id: "technology", label: "Technology", interests: [], lens: "" }],
+        overview: "Keep me",
         updated_at: "2026-05-06T08:00:00Z",
       },
       error: null,
@@ -112,11 +116,77 @@ describe("user profile helpers", () => {
 
     await saveUserProfile("user_1", [{ id: "finance", label: "Finance", interests: ["Markets"], lens: "" }]);
 
-    expect(writeQuery.update).toHaveBeenCalledWith(
+    expect(writeQuery.update).toHaveBeenCalledWith({
+      topics: [{ id: "finance", label: "Finance", interests: ["Markets"], lens: "" }],
+      updated_at: expect.any(String),
+    });
+    expect(writeQuery.eq).toHaveBeenCalledWith("id", "profile_1");
+  });
+
+  test("stores overview when provided on insert", async () => {
+    const readQuery = queryMock({ data: null, error: null });
+    const writeQuery = queryMock({
+      data: {
+        id: "profile_1",
+        user_id: "user_1",
+        overview: "I love news.",
+        topics: [{ id: "technology", label: "Technology", interests: ["AI"], lens: "" }],
+        updated_at: "2026-05-06T08:00:00Z",
+      },
+      error: null,
+    });
+    const from = jest.fn().mockReturnValueOnce(readQuery).mockReturnValueOnce(writeQuery);
+    getSupabaseServiceClientMock.mockReturnValue({ from });
+
+    await saveUserProfile(
+      "user_1",
+      [{ id: "technology", label: "Technology", interests: ["AI"], lens: "" }],
+      { overview: "I love news." },
+    );
+
+    expect(writeQuery.insert).toHaveBeenCalledWith(
       expect.objectContaining({
-        topics: [{ id: "finance", label: "Finance", interests: ["Markets"], lens: "" }],
+        overview: "I love news.",
       }),
     );
-    expect(writeQuery.eq).toHaveBeenCalledWith("id", "profile_1");
+  });
+
+  test("writes overview when provided on update", async () => {
+    const readQuery = queryMock({
+      data: {
+        id: "profile_1",
+        user_id: "user_1",
+        topics: [{ id: "technology", label: "Technology", interests: [], lens: "" }],
+        overview: null,
+        updated_at: "2026-05-06T08:00:00Z",
+      },
+      error: null,
+    });
+    const writeQuery = queryMock({
+      data: {
+        id: "profile_1",
+        user_id: "user_1",
+        overview: "Updated blurb.",
+        topics: [{ id: "technology", label: "Technology", interests: ["AI"], lens: "" }],
+        updated_at: "2026-05-06T09:00:00Z",
+      },
+      error: null,
+    });
+    const from = jest.fn().mockReturnValueOnce(readQuery).mockReturnValueOnce(writeQuery);
+    getSupabaseServiceClientMock.mockReturnValue({ from });
+
+    await saveUserProfile(
+      "user_1",
+      [{ id: "technology", label: "Technology", interests: ["AI"], lens: "" }],
+      { overview: "Updated blurb." },
+    );
+
+    expect(writeQuery.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        overview: "Updated blurb.",
+        topics: [{ id: "technology", label: "Technology", interests: ["AI"], lens: "" }],
+        updated_at: expect.any(String),
+      }),
+    );
   });
 });

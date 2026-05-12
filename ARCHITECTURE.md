@@ -72,22 +72,26 @@ Generated briefs are stored in the Supabase `briefs` table. The daily cache key 
 - Normal successful generation validates the model output and inserts it into `briefs`.
 - Dev-mode force regenerate bypasses today's cache and inserts a new brief row. The UI shows the latest dump as current and the immediately prior row as the previous dump.
 
-### Onboarding and profiles (Phase 3.0.4)
+### Onboarding and profiles (Phase 3.0.4 + 3.1)
 
-Users without a `profiles` row are redirected from `/brief` to `/onboarding/topics`. Onboarding is protected and server-gated: users who already have a profile are redirected back to `/brief`.
+Users without a `profiles` row are redirected from `/brief` to `/onboarding` (free-text first step). Onboarding is protected and server-gated: users who already have a profile are redirected back to `/brief`.
 
-The onboarding flow stores a draft in browser session storage until confirmation:
-- `/onboarding/topics`: select 1-3 topics from the configured topic list, including Hobbies.
-- `/onboarding/refine`: optionally select interests and add a free-text lens per topic.
-- `/onboarding/confirm`: save preferences via `POST /api/profile`, then redirect to `/brief`.
+**Primary flow (Phase 3.1):** session storage holds the draft until save.
+- `/onboarding`: free-text self-description → `POST /api/onboarding/extract` (Haiku, structured tool) → suggested topics in session → `/onboarding/review`
+- `/onboarding/review`: edit overview, topics, interests, lenses → `POST /api/profile` with `overview` + `topics`, then redirect to `/brief`
 
-Stored `profiles.topics` entries use:
+**Manual fallback:** `/onboarding/topics` → `/onboarding/refine` → `/onboarding/confirm` (same `POST /api/profile`; confirm clears session keys including overview).
+
+Stored `profiles` shape:
 
 ```json
-{ "id": "technology", "label": "Technology", "interests": ["AI"], "lens": "LegalTech startups" }
+{
+  "overview": "Verbatim self-description from the user (review screen).",
+  "topics": [{ "id": "technology", "label": "Technology", "interests": ["AI"], "lens": "LegalTech startups" }]
+}
 ```
 
-`POST /api/generate` now uses the current user's stored profile by default. Explicit hardcoded `profileId` generation is restricted to users with `dev_mode = true`.
+`POST /api/generate` uses the stored profile and prepends non-empty `overview` to the prompt as `User context: …` via `buildUserProfileProfile`. Explicit hardcoded `profileId` generation is restricted to users with `dev_mode = true`.
 
 ### Dev mode (Phase 3.0.5)
 
@@ -103,7 +107,7 @@ Force regenerate is available only in dev mode for real generation modes (`Your 
 - **Auth shell**: `src/app/layout.tsx`, `src/proxy.ts`, `src/app/sign-in/[[...rest]]/page.tsx`, `src/app/sign-up/[[...rest]]/page.tsx`
 - **User sync**: `src/app/brief/page.tsx`, `src/app/brief/BriefClient.tsx`, `src/lib/userSync.ts`, `src/lib/supabase.ts`
 - **Brief cache**: `src/app/api/briefs/route.ts`, `src/lib/briefCache.ts`
-- **Onboarding/profile persistence**: `src/app/onboarding/**`, `src/app/api/profile/route.ts`, `src/lib/onboarding.ts`, `src/lib/userProfile.ts`
+- **Onboarding/profile persistence**: `src/app/onboarding/**`, `src/app/api/profile/route.ts`, `src/app/api/onboarding/extract/route.ts`, `src/lib/onboarding.ts`, `src/lib/onboardingExtraction.ts`, `src/lib/userProfile.ts`
 - **Dev mode UI**: `src/app/brief/BriefClient.tsx`, `src/components/ProfileBar.tsx`
 - **Feedback extraction**: `src/components/FeedbackPanel.tsx`, `src/app/api/feedback/route.ts`, `src/lib/feedbackExtraction.ts`
 - **Server/Edge generation route**: `src/app/api/generate/route.ts`
@@ -137,9 +141,10 @@ Anthropic returns structured data by filling the `deliver_brief` tool schema. Th
 - Onboarding topic definitions: `src/lib/onboarding.ts`
 - User profile helpers: `src/lib/userProfile.ts`
 - User profile API: `src/app/api/profile/route.ts`
+- Onboarding extraction API: `src/app/api/onboarding/extract/route.ts`
 - Feedback extraction API: `src/app/api/feedback/route.ts`
 - Feedback extraction helper: `src/lib/feedbackExtraction.ts`
-- Onboarding screens: `src/app/onboarding/topics/page.tsx`, `src/app/onboarding/refine/page.tsx`, `src/app/onboarding/confirm/page.tsx`
+- Onboarding screens: `src/app/onboarding/page.tsx`, `src/app/onboarding/review/page.tsx`, `src/app/onboarding/topics/page.tsx`, `src/app/onboarding/refine/page.tsx`, `src/app/onboarding/confirm/page.tsx`
 - API route: `src/app/api/generate/route.ts`
 - Streaming Anthropic wrapper: `src/lib/anthropicStream.ts`
 - Non-streaming Anthropic wrapper: `src/lib/anthropic.ts`
@@ -161,8 +166,8 @@ Anthropic returns structured data by filling the `deliver_brief` tool schema. Th
   - Never expose to the browser (no `NEXT_PUBLIC_` prefix)
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`
   - Required for Clerk authentication outside keyless development mode
-- `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in`, `NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/brief`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/brief`
-  - Keep Clerk redirects aligned with the catch-all auth routes
+- `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in`, `NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/auth/continue`, `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/auth/continue`
+  - Post-auth flows land on `/auth/continue`, a server route that checks the saved profile and redirects to `/brief` or `/onboarding`.
 - `NEXT_PUBLIC_SUPABASE_URL`
   - Supabase project URL
 - `SUPABASE_SERVICE_ROLE_KEY` (server-side only)

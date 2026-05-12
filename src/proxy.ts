@@ -5,19 +5,26 @@ function isProtectedRoute(pathname: string) {
   return pathname === "/brief" || pathname.startsWith("/brief/") || pathname === "/onboarding" || pathname.startsWith("/onboarding/");
 }
 
-const clerkProxy = clerkMiddleware(async (auth, req) => {
-  const { isAuthenticated, redirectToSignIn } = await auth();
+const clerkProxy = clerkMiddleware(
+  async (auth, req) => {
+    const { isAuthenticated } = await auth();
 
-  if (req.nextUrl.pathname === "/" && isAuthenticated) {
-    return NextResponse.redirect(new URL("/brief", req.url));
-  }
+    if (req.nextUrl.pathname === "/" && isAuthenticated) {
+      return NextResponse.redirect(new URL("/auth/continue", req.url));
+    }
 
-  if (!isProtectedRoute(req.nextUrl.pathname)) {
-    return;
-  }
+    if (!isProtectedRoute(req.nextUrl.pathname)) {
+      return;
+    }
 
-  if (!isAuthenticated) return redirectToSignIn();
-});
+    if (!isAuthenticated) return NextResponse.redirect(new URL("/sign-in", req.url));
+  },
+  /** Without NEXT_PUBLIC_CLERK_SIGN_IN_URL in env, Clerk redirects to hosted Account Portal (*.accounts.dev). */
+  (req) => ({
+    signInUrl: new URL("/sign-in", req.url).href,
+    signUpUrl: new URL("/sign-up", req.url).href,
+  }),
+);
 
 export const proxy = clerkProxy;
 export default clerkProxy;

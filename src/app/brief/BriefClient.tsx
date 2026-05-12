@@ -1,6 +1,8 @@
 "use client";
 
+import { Suspense } from "react";
 import { UserButton, useUser } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { BriefView } from "@/components/BriefView";
 import { FeedbackPanel } from "@/components/FeedbackPanel";
@@ -123,13 +125,16 @@ function AppHeader({ today, devMode }: { today: string; devMode: boolean }) {
           </div>
         ) : null}
         <div className="font-mono text-[9px] uppercase tracking-[0.08em] text-[var(--ink-ghost)]">{today}</div>
-        <UserButton />
+        <Suspense fallback={<span className="inline-block size-8 shrink-0 rounded-full bg-[var(--rule)]" aria-hidden />}>
+          <UserButton />
+        </Suspense>
       </div>
     </header>
   );
 }
 
 export function BriefClient() {
+  const router = useRouter();
   const { user } = useUser();
   const [active, setActive] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("idle");
@@ -225,6 +230,14 @@ export function BriefClient() {
       cancelled = true;
     };
   }, []);
+
+  /** Server page should gate this, but post–sign-in client navigations can still mount Brief with no saved profile — send users to onboarding instead of a blank main. */
+  useEffect(() => {
+    if (isCacheLoading) return;
+    if (devMode) return;
+    if (userProfile?.topics && userProfile.topics.length > 0) return;
+    router.replace("/onboarding");
+  }, [isCacheLoading, devMode, userProfile, router]);
 
   useEffect(() => {
     if (!hasTodayBrief) return;
@@ -384,6 +397,9 @@ export function BriefClient() {
 
   const firstName = activeProfile?.name.split(" ")[0] ?? "there";
 
+  const showProfileGateSpinner =
+    status === "idle" && (isCacheLoading || (!devMode && !(userProfile?.topics && userProfile.topics.length > 0)));
+
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--ink)]">
       <AppHeader today={today} devMode={devMode} />
@@ -397,14 +413,16 @@ export function BriefClient() {
       ) : null}
 
       <main className="mx-auto max-w-[680px] px-5 pb-20 pt-5">
-        {isCacheLoading && status === "idle" ? (
+        {showProfileGateSpinner ? (
           <div className="py-20 text-center">
             <div className="mx-auto mb-5 h-8 w-8 animate-[dailyDumpSpin_0.8s_linear_infinite] rounded-full border-2 border-[var(--rule)] border-t-[var(--amber)]" />
-            <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-mid)]">Checking today&apos;s brief...</div>
+            <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-mid)]">
+              {!isCacheLoading && !devMode ? "Setting up your profile…" : "Checking today's brief…"}
+            </div>
           </div>
         ) : null}
 
-        {!isCacheLoading && status === "idle" && userProfile && (
+        {!showProfileGateSpinner && status === "idle" && userProfile && (
           <div>
             <div className="mb-1 font-heading text-[28px] font-bold tracking-[-0.5px]">Morning, {firstName}.</div>
             <p className="mb-5 font-sans text-[13px] font-light text-[var(--ink-light)]">Your brief is ready to generate.</p>

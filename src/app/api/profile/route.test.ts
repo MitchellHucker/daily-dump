@@ -40,6 +40,7 @@ describe("/api/profile route", () => {
       id: "profile_1",
       user_id: "user_123",
       topics: [{ id: "technology", label: "Technology", interests: ["AI"], lens: "" }],
+      overview: null,
       updated_at: "2026-05-06T08:00:00Z",
     };
     getUserProfileMock.mockResolvedValue(profile);
@@ -58,6 +59,7 @@ describe("/api/profile route", () => {
       id: "profile_1",
       user_id: "user_123",
       topics: [{ id: "technology", label: "Technology", interests: ["AI"], lens: "Startups" }],
+      overview: null,
       updated_at: "2026-05-06T08:00:00Z",
     };
     saveUserProfileMock.mockResolvedValue(profile);
@@ -84,6 +86,7 @@ describe("/api/profile route", () => {
       id: "profile_1",
       user_id: "user_123",
       topics: [],
+      overview: null,
       updated_at: "2026-05-06T08:00:00Z",
     });
 
@@ -113,6 +116,45 @@ describe("/api/profile route", () => {
 
   test("rejects empty topic selections", async () => {
     const res = await POST({ json: async () => ({ topics: [] }) } as unknown as Request);
+
+    expect(res.status).toBe(400);
+    expect(saveUserProfileMock).not.toHaveBeenCalled();
+  });
+
+  test("saves overview with topics when provided", async () => {
+    const profile = {
+      id: "profile_1",
+      user_id: "user_123",
+      topics: [{ id: "technology", label: "Technology", interests: ["AI"], lens: "" }],
+      overview: "PM in the UK focused on AI.",
+      updated_at: "2026-05-06T08:00:00Z",
+    };
+    saveUserProfileMock.mockResolvedValue(profile);
+
+    const res = await POST({
+      json: async () => ({
+        topics: [{ id: "technology", interests: ["AI"], lens: "" }],
+        overview: "PM in the UK focused on AI.",
+      }),
+    } as unknown as Request);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.profile).toEqual(profile);
+    expect(saveUserProfileMock).toHaveBeenCalledWith(
+      "user_123",
+      [{ id: "technology", label: "Technology", interests: ["AI"], lens: "" }],
+      { maxTopics: 3, overview: "PM in the UK focused on AI." },
+    );
+  });
+
+  test("rejects non-string overview", async () => {
+    const res = await POST({
+      json: async () => ({
+        topics: [{ id: "technology", interests: [], lens: "" }],
+        overview: 123,
+      }),
+    } as unknown as Request);
 
     expect(res.status).toBe(400);
     expect(saveUserProfileMock).not.toHaveBeenCalled();

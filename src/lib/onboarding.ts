@@ -80,3 +80,9 @@ export function sanitizeTopicPreferences(value: unknown, maxTopics = MAX_ONBOARD
 
   return preferences;
 }
+
+/** Session draft keys shared by onboarding screens. */
+export const ONBOARDING_DRAFT_STORAGE_KEY = "dailyDumpOnboardingDraft";
+export const ONBOARDING_OVERVIEW_STORAGE_KEY = "dailyDumpOnboardingOverview";
+/** "1" when extraction fell back to defaults — review UI may surface a banner. */
+export const ONBOARDING_NEEDS_REVIEW_STORAGE_KEY = "dailyDumpOnboardingNeedsReview";

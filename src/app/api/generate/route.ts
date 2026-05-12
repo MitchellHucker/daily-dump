@@ -60,7 +60,11 @@ export async function POST(request: Request) {
     if (!storedProfile || storedProfile.topics.length === 0) {
       return Response.json({ error: "Complete onboarding before generating a brief." }, { status: 409 });
     }
-    generationProfile = buildUserProfileProfile({ name: user.name, topics: storedProfile.topics });
+    generationProfile = buildUserProfileProfile({
+      name: user.name,
+      topics: storedProfile.topics,
+      overview: storedProfile.overview,
+    });
   }
 
   const encoder = new TextEncoder();

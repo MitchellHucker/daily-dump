@@ -2,9 +2,8 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import { sanitizeTopicPreferences, TOPIC_OPTIONS, TOPIC_OPTIONS_BY_ID, type ProfileTopicPreference } from "@/lib/onboarding";
-
-const DRAFT_STORAGE_KEY = "dailyDumpOnboardingDraft";
+import { OnboardingHeader } from "@/components/OnboardingHeader";
+import { sanitizeTopicPreferences, TOPIC_OPTIONS, TOPIC_OPTIONS_BY_ID, ONBOARDING_DRAFT_STORAGE_KEY, type ProfileTopicPreference } from "@/lib/onboarding";
 
 export default function RefinePage() {
   return (
@@ -25,7 +24,7 @@ function RefineContent() {
 
   useEffect(() => {
     let timeoutId: number | null = null;
-    const stored = window.sessionStorage.getItem(DRAFT_STORAGE_KEY);
+    const stored = window.sessionStorage.getItem(ONBOARDING_DRAFT_STORAGE_KEY);
     const parsedDraft = stored ? JSON.parse(stored) : null;
     const nextDraft = sanitizeTopicPreferences(parsedDraft, TOPIC_OPTIONS.length);
     if (nextDraft.length === 0) {
@@ -71,7 +70,7 @@ function RefineContent() {
           }
         : topic,
     );
-    window.sessionStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(nextDraft));
+    window.sessionStorage.setItem(ONBOARDING_DRAFT_STORAGE_KEY, JSON.stringify(nextDraft));
 
     const nextIndex = currentIndex + 1;
     if (nextIndex < nextDraft.length) {
@@ -87,11 +86,7 @@ function RefineContent() {
 
   return (
     <main className="min-h-screen bg-[var(--bg)] text-[var(--ink)]">
-      <header className="border-b border-[var(--rule)] px-5 py-4">
-        <div className="font-heading text-[18px] font-extrabold tracking-[-0.4px]">
-          Daily<span className="text-[var(--amber)]">.</span>Dump
-        </div>
-      </header>
+      <OnboardingHeader />
 
       <section className="mx-auto w-full max-w-[520px] px-5 py-5">
         <div className="mb-[6px] font-mono text-[9px] uppercase tracking-[0.16em] text-[var(--ink-ghost)]">Step 2 of 3 · Refine</div>
@@ -161,11 +156,7 @@ function RefineContent() {
 function OnboardingShell({ children }: { children: React.ReactNode }) {
   return (
     <main className="min-h-screen bg-[var(--bg)] text-[var(--ink)]">
-      <header className="border-b border-[var(--rule)] px-5 py-4">
-        <div className="font-heading text-[18px] font-extrabold tracking-[-0.4px]">
-          Daily<span className="text-[var(--amber)]">.</span>Dump
-        </div>
-      </header>
+      <OnboardingHeader />
       <section className="mx-auto w-full max-w-[520px] px-5 py-5 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-mid)]">
         {children}
       </section>

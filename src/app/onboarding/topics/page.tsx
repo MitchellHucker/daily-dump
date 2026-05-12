@@ -1,10 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useEffect, useState } from "react";
-import { createEmptyTopicPreference, MAX_ONBOARDING_TOPICS, TOPIC_OPTIONS } from "@/lib/onboarding";
-
-const DRAFT_STORAGE_KEY = "dailyDumpOnboardingDraft";
+import { OnboardingHeader } from "@/components/OnboardingHeader";
+import {
+  ONBOARDING_DRAFT_STORAGE_KEY,
+  createEmptyTopicPreference,
+  MAX_ONBOARDING_TOPICS,
+  TOPIC_OPTIONS,
+} from "@/lib/onboarding";
 
 export default function TopicsPage() {
   const router = useRouter();
@@ -39,23 +44,22 @@ export default function TopicsPage() {
   const continueToRefinement = () => {
     if (selected.length === 0) return;
     const draft = selected.map((topicId) => createEmptyTopicPreference(topicId)).filter(Boolean);
-    window.sessionStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+    window.sessionStorage.setItem(ONBOARDING_DRAFT_STORAGE_KEY, JSON.stringify(draft));
     router.push("/onboarding/refine?topic=0");
   };
 
   return (
     <main className="min-h-screen bg-[var(--bg)] text-[var(--ink)]">
-      <header className="border-b border-[var(--rule)] px-5 py-4">
-        <div className="font-heading text-[18px] font-extrabold tracking-[-0.4px]">
-          Daily<span className="text-[var(--amber)]">.</span>Dump
-        </div>
-      </header>
+      <OnboardingHeader />
 
       <section className="mx-auto w-full max-w-[520px] px-5 py-5">
         <div className="mb-[6px] font-mono text-[9px] uppercase tracking-[0.16em] text-[var(--ink-ghost)]">Step 1 of 3 · Topics</div>
         <h1 className="mb-1 font-heading text-[24px] font-bold tracking-[-0.4px]">What do you care about?</h1>
         <p className="mb-5 font-sans text-[13px] font-light text-[var(--ink-light)]">
-          Pick at least 1, up to {maxTopics} to start.
+          Pick at least 1, up to {maxTopics} to start.{" "}
+          <Link href="/onboarding" className="font-medium text-[var(--amber)] underline underline-offset-2 hover:opacity-90">
+            Prefer free text setup →
+          </Link>
         </p>
 
         <div className="mb-4 grid grid-cols-3 gap-[6px]">

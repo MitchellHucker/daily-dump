@@ -40,5 +40,26 @@ describe("profiles prompt builder", () => {
     expect(profile.prompt()).toContain("Lens: LegalTech startups");
     expect(profile.prompt()).toContain("Broad general coverage for this topic");
   });
+
+  test("dynamic user profile prompt prefixes User context when overview is set", () => {
+    const profile = buildUserProfileProfile({
+      name: "Avery Example",
+      topics: [{ id: "technology", label: "Technology", interests: ["AI"], lens: "" }],
+      overview: "PM in London who cares about UK tech policy.",
+    });
+
+    expect(profile.prompt()).toContain("User context: PM in London who cares about UK tech policy.");
+    expect(profile.prompt()).toContain("SECTION: ⚡ | Technology | technology");
+  });
+
+  test("dynamic user profile prompt omits User context when overview is absent", () => {
+    const profile = buildUserProfileProfile({
+      name: "Avery Example",
+      topics: [{ id: "finance", label: "Finance", interests: [], lens: "" }],
+      overview: null,
+    });
+
+    expect(profile.prompt()).not.toContain("User context:");
+  });
 });
 

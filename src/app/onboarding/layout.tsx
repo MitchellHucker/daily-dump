@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { getUserDevMode } from "@/lib/briefCache";
 import { syncCurrentUser } from "@/lib/userSync";
 import { hasUserProfile } from "@/lib/userProfile";
 
@@ -10,8 +9,8 @@ export default async function OnboardingLayout({
 }>) {
   const user = await syncCurrentUser();
   if (!user) redirect("/sign-in");
-  const [hasProfile, devMode] = await Promise.all([hasUserProfile(user.id), getUserDevMode(user.id)]);
-  if (hasProfile && !devMode) redirect("/brief");
+  /** Signed-in users with a saved profile always continue to brief — dev_mode does not exempt this (dev tooling lives on `/brief`). */
+  if (await hasUserProfile(user.id)) redirect("/brief");
 
   return children;
 }

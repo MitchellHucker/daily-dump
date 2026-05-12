@@ -105,12 +105,17 @@ function getFirstName(name: string) {
 export function buildUserProfileProfile({
   name,
   topics,
+  overview,
 }: {
   name: string | null;
   topics: ProfileTopicPreference[];
+  /** Verbatim user self-description; prepended once as cross-section context. */
+  overview?: string | null;
 }): Profile {
   const displayName = name?.trim() || "You";
   const firstName = getFirstName(displayName);
+  const overviewBlock =
+    overview && overview.trim() ? `\nUser context: ${overview.trim()}\n` : "";
 
   return {
     id: "user",
@@ -135,8 +140,7 @@ export function buildUserProfileProfile({
         })
         .join("\n");
 
-      return `You are a personal news editor. Write a morning brief for ${displayName}.
-
+      return `You are a personal news editor. Write a morning brief for ${displayName}.${overviewBlock}
 You are given a curated set of today's articles for each section below. Use only those articles as your sources. Do not search the web. If an article is not recent enough or not relevant, skip it — do not fabricate stories. Some articles may not have a published date. Treat these with caution — only include them if the content clearly references very recent events. If an undated article appears to be from a predictions piece, annual review, or any content suggesting it was written months ago, skip it. Only include a section if fresh articles have been provided for it. If a section has no articles, omit it entirely from the brief — it is better to deliver a shorter brief with fewer sections than to include stale or invented content. Preserve the article URL in sourceUrl. Where an article has a published date, include it in sourceDate as YYYY-MM-DD only.
 
 Cover these sections in order:

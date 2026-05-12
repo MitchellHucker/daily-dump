@@ -7,6 +7,8 @@ export const dynamic = "force-dynamic";
 
 type ProfileBody = {
   topics?: unknown;
+  /** Verbatim self-description; omit on update to leave existing overview unchanged. */
+  overview?: unknown;
 };
 
 export async function GET() {
@@ -39,6 +41,14 @@ export async function POST(request: Request) {
     return Response.json({ error: "Select at least one topic." }, { status: 400 });
   }
 
-  const profile = await saveUserProfile(user.id, topics, { maxTopics });
+  let overview: string | undefined;
+  if (body.overview !== undefined) {
+    if (typeof body.overview !== "string") {
+      return Response.json({ error: "overview must be a string when provided." }, { status: 400 });
+    }
+    overview = body.overview;
+  }
+
+  const profile = await saveUserProfile(user.id, topics, { maxTopics, ...(overview !== undefined ? { overview } : {}) });
   return Response.json({ profile });
 }

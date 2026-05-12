@@ -2,9 +2,15 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { sanitizeTopicPreferences, TOPIC_OPTIONS, type ProfileTopicPreference } from "@/lib/onboarding";
-
-const DRAFT_STORAGE_KEY = "dailyDumpOnboardingDraft";
+import { OnboardingHeader } from "@/components/OnboardingHeader";
+import {
+  ONBOARDING_DRAFT_STORAGE_KEY,
+  ONBOARDING_NEEDS_REVIEW_STORAGE_KEY,
+  ONBOARDING_OVERVIEW_STORAGE_KEY,
+  sanitizeTopicPreferences,
+  TOPIC_OPTIONS,
+  type ProfileTopicPreference,
+} from "@/lib/onboarding";
 
 export default function ConfirmPage() {
   const router = useRouter();
@@ -14,7 +20,7 @@ export default function ConfirmPage() {
 
   useEffect(() => {
     let timeoutId: number | null = null;
-    const stored = window.sessionStorage.getItem(DRAFT_STORAGE_KEY);
+    const stored = window.sessionStorage.getItem(ONBOARDING_DRAFT_STORAGE_KEY);
     const parsedDraft = stored ? JSON.parse(stored) : null;
     const nextDraft = sanitizeTopicPreferences(parsedDraft, TOPIC_OPTIONS.length);
     if (nextDraft.length === 0) {
@@ -49,7 +55,9 @@ export default function ConfirmPage() {
         throw new Error(msg);
       }
 
-      window.sessionStorage.removeItem(DRAFT_STORAGE_KEY);
+      window.sessionStorage.removeItem(ONBOARDING_DRAFT_STORAGE_KEY);
+      window.sessionStorage.removeItem(ONBOARDING_OVERVIEW_STORAGE_KEY);
+      window.sessionStorage.removeItem(ONBOARDING_NEEDS_REVIEW_STORAGE_KEY);
       router.push("/brief");
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -60,11 +68,7 @@ export default function ConfirmPage() {
 
   return (
     <main className="min-h-screen bg-[var(--bg)] text-[var(--ink)]">
-      <header className="border-b border-[var(--rule)] px-5 py-4">
-        <div className="font-heading text-[18px] font-extrabold tracking-[-0.4px]">
-          Daily<span className="text-[var(--amber)]">.</span>Dump
-        </div>
-      </header>
+      <OnboardingHeader />
 
       <section className="mx-auto w-full max-w-[520px] px-5 py-5">
         <div className="mb-[6px] font-mono text-[9px] uppercase tracking-[0.16em] text-[var(--ink-ghost)]">Step 3 of 3 · Confirm</div>
