@@ -8,23 +8,39 @@ export function NudgeCard({
   onYes,
   onCustom,
   onNo,
+  inline = false,
 }: {
   entityKey: string;
   accent: string;
   onYes: () => void;
   onCustom: (text: string) => void;
   onNo: () => void;
+  /** Rendered directly under the story row that triggered the nudge */
+  inline?: boolean;
 }) {
   const [customOpen, setCustomOpen] = useState(false);
   const [customText, setCustomText] = useState("");
 
   return (
     <div
-      className="my-4 animate-[dailyDumpSlideIn_0.2s_ease-out] rounded-[var(--radius)] border border-[var(--rule)] border-l-2 bg-[var(--amber-bg)] px-[18px] py-4"
+      className={[
+        "animate-[dailyDumpSlideIn_0.2s_ease-out] border-l-2 bg-[var(--amber-bg)]",
+        inline
+          ? "mb-[9px] border-t border-[#edeae4] px-3 py-3"
+          : "my-4 rounded-[var(--radius)] border border-[var(--rule)] px-[18px] py-4",
+      ].join(" ")}
       style={{ borderLeftColor: accent }}
     >
-      <div className="mb-1 font-heading text-[16px] font-bold tracking-[-0.25px] text-[var(--ink)]">You keep reading about {entityKey}</div>
-      <div className="mb-[14px] font-sans text-[13px] font-light leading-[1.55] text-[var(--ink-mid)]">
+      <div
+        className={
+          inline
+            ? "mb-1 font-sans text-[14px] font-semibold tracking-[-0.1px] text-[var(--ink)]"
+            : "mb-1 font-heading text-[16px] font-bold tracking-[-0.25px] text-[var(--ink)]"
+        }
+      >
+        You keep reading about {entityKey}
+      </div>
+      <div className="mb-[12px] font-sans text-[12px] font-light leading-[1.55] text-[var(--ink-mid)]">
         Want us to go deeper — more coverage, more angles?
       </div>
 
@@ -80,10 +96,9 @@ export function NudgeCard({
         </div>
       )}
 
-      <div className="mt-[10px] font-mono text-[9px] leading-[1.6] tracking-[0.08em] text-[var(--ink-ghost)]">
+      <div className="mt-[8px] font-mono text-[9px] leading-[1.6] tracking-[0.08em] text-[var(--ink-ghost)]">
         We add more {entityKey} coverage across multiple sources and angles — not just one perspective.
       </div>
     </div>
   );
 }
-

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { GeneralNewsArticle } from "./generalNews";
 import type { ProfileTopicPreference } from "./onboarding";
 
 type Database = {
@@ -75,6 +76,27 @@ type Database = {
           content?: unknown;
           generated_at?: string | null;
           date?: string;
+        };
+        Relationships: [];
+      };
+      general_news: {
+        Row: {
+          id: string;
+          date: string;
+          articles: GeneralNewsArticle[];
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          date: string;
+          articles: GeneralNewsArticle[];
+          created_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          date?: string;
+          articles?: GeneralNewsArticle[];
+          created_at?: string | null;
         };
         Relationships: [];
       };

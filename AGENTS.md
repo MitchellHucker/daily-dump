@@ -151,10 +151,12 @@ src/
 
 **In progress:** Phase 3 — Auth (Clerk) + Persistence (Supabase)
 
-**Planned after Phase 3 core:**
+**Completed (Phase 3 increments):**
 - 3.1 — Free-text onboarding with Haiku extraction, overview field in profiles
 - 3.2 — Landing page value proposition and brand copy
 - 3.3 — General news loading state with shared Supabase cache
+
+**Planned after Phase 3 core:**
 
 **Phase 3 end-of-phase polish:**
 - Stream article names visually as JSON is written

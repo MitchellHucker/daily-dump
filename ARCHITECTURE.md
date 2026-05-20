@@ -101,12 +101,23 @@ The dev switcher includes `Your Profile` plus the legacy Mitchell, Ralitsa, and 
 
 Force regenerate is available only in dev mode for real generation modes (`Your Profile`, Mitchell, Ralitsa). It bypasses today's cache and writes a new `briefs` row, preserving the latest-dump history behavior agreed during Phase 3.0.3.
 
+### General news cache (Phase 3.3)
+
+Shared global headlines (not personalised) for the brief page loading experience.
+
+- **Storage:** Supabase `general_news` table — one row per UTC `date`, `articles` jsonb array of Tavily snippets (`title`, `url`, `content`, optional `published_date`).
+- **Fill:** `GET /api/general-news` reads today's row; on miss runs Tavily (`fetchGeneralHeadlines` with geopolitical query + global domain bias) then **Haiku** (`synthesizeGeneralHeadlines` in `src/lib/generalNewsSynthesis.ts`). Upserts only on successful synthesis; failures return `[]` and do not cache.
+- **Stored articles:** `{ headline, snap, detail, url, source, origin?, published_date? }` — not raw Tavily `content`.
+- **Client:** `BriefClient` fetches `/api/general-news` on mount (parallel with `/api/briefs`). Headlines persist in separate state through idle, loading, and done. No fetch on Generate click; `POST /api/generate` is unchanged.
+- **UI:** `GeneralNewsHeadlines` + `StoryCard` with `suppressInteractions` (standard expand; no follow/entities/nudge tracking). Optional `origin` label for future geo filtering.
+
 ## Runtime boundaries (what runs where)
 
 - **Client UI**: `src/app/page.tsx` (React client component)
 - **Auth shell**: `src/app/layout.tsx`, `src/proxy.ts`, `src/app/sign-in/[[...rest]]/page.tsx`, `src/app/sign-up/[[...rest]]/page.tsx`
 - **User sync**: `src/app/brief/page.tsx`, `src/app/brief/BriefClient.tsx`, `src/lib/userSync.ts`, `src/lib/supabase.ts`
 - **Brief cache**: `src/app/api/briefs/route.ts`, `src/lib/briefCache.ts`
+- **General news cache**: `src/app/api/general-news/route.ts`, `src/lib/generalNewsCache.ts`, `src/lib/generalNews.ts`, `src/components/GeneralNewsHeadlines.tsx`
 - **Onboarding/profile persistence**: `src/app/onboarding/**`, `src/app/api/profile/route.ts`, `src/app/api/onboarding/extract/route.ts`, `src/lib/onboarding.ts`, `src/lib/onboardingExtraction.ts`, `src/lib/userProfile.ts`
 - **Dev mode UI**: `src/app/brief/BriefClient.tsx`, `src/components/ProfileBar.tsx`
 - **Feedback extraction**: `src/components/FeedbackPanel.tsx`, `src/app/api/feedback/route.ts`, `src/lib/feedbackExtraction.ts`
@@ -138,6 +149,8 @@ Anthropic returns structured data by filling the `deliver_brief` tool schema. Th
 - User sync: `src/lib/userSync.ts`
 - Brief cache helpers: `src/lib/briefCache.ts`
 - Brief cache API: `src/app/api/briefs/route.ts`
+- General news API: `src/app/api/general-news/route.ts`
+- General news helpers: `src/lib/generalNewsCache.ts`, `src/lib/generalNews.ts`, `src/lib/generalNewsSynthesis.ts`
 - Onboarding topic definitions: `src/lib/onboarding.ts`
 - User profile helpers: `src/lib/userProfile.ts`
 - User profile API: `src/app/api/profile/route.ts`

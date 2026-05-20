@@ -1,23 +1,32 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Story } from "../lib/stubs";
+import type { Story } from "../lib/types";
+
+type StoryCardProps = {
+  story: Story;
+  accent: string;
+  disableExpand?: boolean;
+  /** Expand works; hide follow/entities and do not call interaction handlers (general headlines). */
+  suppressInteractions?: boolean;
+  secondaryCollapsed?: boolean;
+  onExpand?: (entities: string[]) => void;
+  onFollow?: (entities: string[]) => void;
+  onTrackEntity?: (entity: string) => void;
+  trackedEntities?: Set<string>;
+};
 
 export function StoryCard({
   story,
   accent,
+  disableExpand = false,
+  suppressInteractions = false,
+  secondaryCollapsed = false,
   onExpand,
   onFollow,
   onTrackEntity,
-  trackedEntities,
-}: {
-  story: Story;
-  accent: string;
-  onExpand: (entities: string[]) => void;
-  onFollow: (entities: string[]) => void;
-  onTrackEntity: (entity: string) => void;
-  trackedEntities: Set<string>;
-}) {
+  trackedEntities = new Set(),
+}: StoryCardProps) {
   const [open, setOpen] = useState(false);
   const [followed, setFollowed] = useState(false);
 
@@ -32,23 +41,23 @@ export function StoryCard({
     const day = Number(m[3]);
     if (!year || month < 1 || month > 12 || day < 1 || day > 31) return "";
 
-    // Use UTC to avoid timezone shifting the day.
     const dt = new Date(Date.UTC(year, month - 1, day));
     const monthName = new Intl.DateTimeFormat(undefined, { month: "long", timeZone: "UTC" }).format(dt);
     return `${day} ${monthName}`;
   }, [story.sourceDate]);
 
   const handleExpand = () => {
+    if (disableExpand) return;
     const next = !open;
     setOpen(next);
-    if (next) onExpand(entities);
+    if (next && !suppressInteractions) onExpand?.(entities);
   };
 
   const handleFollow = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (followed) return;
+    if (disableExpand || suppressInteractions || followed) return;
     setFollowed(true);
-    onFollow(entities);
+    onFollow?.(entities);
   };
 
   const { takeLabel, takeText, sourceName } = useMemo(() => {
@@ -60,16 +69,42 @@ export function StoryCard({
     return { takeLabel: label, takeText: text, sourceName: srcName };
   }, [story.source, story.take]);
 
+  if (disableExpand) {
+    return (
+      <div className="overflow-hidden border-b border-[#edeae4] last:border-b-0">
+        <div className="flex items-start gap-2 py-[9px]">
+          <div className="min-w-0 flex-1">
+            <div className="mb-[2px] font-sans text-[13px] font-semibold leading-[1.35] tracking-[-0.1px] text-[var(--ink)]">
+              {story.headline}
+            </div>
+            <div className="font-sans text-[12px] font-light leading-[1.45] text-[var(--ink-light)]">{story.snap}</div>
+            {story.sourceUrl ? (
+              <a
+                href={story.sourceUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-[4px] inline-block font-sans text-[10px] text-[var(--amber)] underline decoration-[rgba(196,113,42,0.4)] underline-offset-[2px] hover:text-[var(--ink)]"
+              >
+                {story.source}
+              </a>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="overflow-hidden border-b border-[#edeae4]">
+    <div className={["overflow-hidden border-b border-[#edeae4]", secondaryCollapsed && !open ? "opacity-70" : ""].filter(Boolean).join(" ")}>
       <div className="group flex cursor-pointer select-none items-start gap-2 py-[9px]" onClick={handleExpand}>
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           <div
+            data-story-headline
             className={[
               "mb-[2px] leading-[1.35] transition-opacity group-hover:opacity-70",
               open
-                ? "font-heading text-[17px] font-bold tracking-[-0.25px] text-[var(--ink)]"
-                : "font-sans text-[13px] font-semibold tracking-[-0.1px] text-[var(--ink)]",
+                ? "font-sans text-[16px] font-bold tracking-[-0.15px] text-[var(--ink)]"
+                : ["font-sans font-semibold tracking-[-0.1px] text-[var(--ink)]", secondaryCollapsed ? "text-[12px]" : "text-[13px]"].join(" "),
             ].join(" ")}
           >
             {story.headline}
@@ -90,7 +125,7 @@ export function StoryCard({
 
       {open && (
         <div className="animate-[dailyDumpSlideIn_0.18s_ease-out] pb-[9px]">
-          {entities.length > 0 && (
+          {!suppressInteractions && entities.length > 0 && (
             <div className="mb-[7px] flex flex-wrap gap-[3px]">
               {entities.map((entity) => {
                 const isTracked = trackedEntities.has(entity);
@@ -106,7 +141,7 @@ export function StoryCard({
                     ].join(" ")}
                     onClick={(e) => {
                       e.stopPropagation();
-                      onTrackEntity(entity);
+                      onTrackEntity?.(entity);
                     }}
                     title="Click to track"
                   >
@@ -151,10 +186,13 @@ export function StoryCard({
                 ) : (
                   story.source
                 )}
+                {suppressInteractions && story.origin ? (
+                  <span className="ml-[3px] font-mono text-[9px] text-[var(--ink-ghost)]">· {story.origin}</span>
+                ) : null}
                 {sourceDateLabel ? <span className="ml-[3px] font-mono text-[9px] text-[var(--ink-ghost)]">· {sourceDateLabel}</span> : null}
               </div>
             )}
-            {sourceName && (
+            {sourceName && !suppressInteractions && (
               <button
                 type="button"
                 onClick={handleFollow}
@@ -174,4 +212,3 @@ export function StoryCard({
     </div>
   );
 }
-

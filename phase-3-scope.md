@@ -440,3 +440,42 @@ create table general_news (
 ```
 
 **What does not change:** personalised generation flow, profiles, briefs table, auth — all untouched. This is additive only.
+
+## Implementation Notes (Phase 3.3)
+
+**What was built**
+- `general_news` Supabase table + migration [`supabase/migrations/003_general_news.sql`](supabase/migrations/003_general_news.sql)
+- `fetchGeneralHeadlines()` in [`src/lib/tavily.ts`](src/lib/tavily.ts) — query `"top world news today"`, `max_results: 4`, same Tavily news params and 7-day filter
+- [`src/lib/generalNewsCache.ts`](src/lib/generalNewsCache.ts) — get/upsert by UTC date key
+- [`GET /api/general-news`](src/app/api/general-news/route.ts) — fill-on-miss (read row; if empty, Tavily + upsert; failures return `{ articles: [] }`)
+- [`src/components/GeneralNewsHeadlines.tsx`](src/components/GeneralNewsHeadlines.tsx) + expandable `StoryCard` with `suppressInteractions` for read-only global headlines
+- [`BriefClient`](src/app/brief/BriefClient.tsx) — mount-only parallel fetch with `/api/briefs`; headlines persist across idle/loading/done
+
+**Key decisions**
+- **Fill trigger:** first signed-in **brief page load** per UTC day (not first Generate click). Scope text said first generation; product requirement was headlines anytime on `/brief`, including reload after today's dump exists.
+- **Single Tavily path:** fill only in `GET /api/general-news`. `POST /api/generate` unchanged — no SSE `general_news`, no duplicate fill races from concurrent generations.
+- **No Generate-click refetch:** mount fetch is sufficient; `generalArticles` state is never cleared on generate.
+
+**Display**
+- Distinct section: `Today's headlines` with amber left-rule label inside a muted card; global headlines remain visually separate from personalised dump content.
+- Idle: under the Generate CTA; loading: below the loading spinner/status; done: below `BriefView`, above previous dump.
+- Generate CTA uses saved profile topic labels as subtext and keeps the action visually balanced with a right-aligned amber arrow.
+- Previous dump renders directly on the page background rather than in a card. Its header remains clear with an amber left rule; collapsed stories are smaller/secondary, but expanded stories return to normal contrast and readable expanded styling.
+
+**Ops**
+- Run migration in Supabase SQL editor before testing in prod (same DDL as above).
+
+**Deferred**
+- Phase 4+ cron at 6am UTC (same table/API; swap fill trigger only)
+
+### Phase 3.3.1 — General headlines quality (Haiku + expand)
+
+**What changed**
+- Tavily query → `"world geopolitical news headlines international"` with `include_domains` (Reuters, BBC, AP, FT, Al Jazeera, Guardian, Economist)
+- Fill pipeline: Tavily → **Haiku** (`polish_general_headlines` tool) → cache; stored shape `{ headline, snap, detail, url, source, origin?, published_date? }`
+- **No cache on synthesis failure** — returns `[]`; next page load retries (avoids serving raw Tavily scrape junk)
+- UI: standard `StoryCard` expand (`snap` + `detail` + source link); `suppressInteractions` (no follow/entities/nudge tracking)
+- Optional `origin` label on expanded general cards (future geo filtering)
+
+**Ops**
+- Delete today's `general_news` row after deploy if old raw-Tavily rows are still cached

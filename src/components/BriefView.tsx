@@ -1,22 +1,30 @@
 "use client";
 
+import { Fragment, type ReactNode } from "react";
 import type { Brief } from "../lib/stubs";
 import { StoryCard } from "./StoryCard";
 
 export function BriefView({
   brief,
   accent,
+  storyKeyPrefix,
   onExpand,
   onFollow,
   onTrackEntity,
   trackedEntities,
+  renderAfterStory,
+  secondaryCollapsedStories = false,
 }: {
   brief: Brief;
   accent: string;
-  onExpand: (entities: string[]) => void;
-  onFollow: (entities: string[]) => void;
-  onTrackEntity: (entity: string) => void;
+  /** Prefix so story keys stay unique across latest vs previous dump on one page */
+  storyKeyPrefix: string;
+  onExpand: (entities: string[], storyKey: string) => void;
+  onFollow: (entities: string[], storyKey: string) => void;
+  onTrackEntity: (entity: string, storyKey: string) => void;
   trackedEntities: Set<string>;
+  renderAfterStory?: (storyKey: string) => ReactNode;
+  secondaryCollapsedStories?: boolean;
 }) {
   return (
     <div>
@@ -28,20 +36,25 @@ export function BriefView({
             </span>
             <span className="h-px flex-1 bg-[var(--rule)]" />
           </div>
-          {sec.stories.map((story, i) => (
-            <StoryCard
-              key={`${sec.id}-${i}`}
-              story={story}
-              accent={accent}
-              onExpand={onExpand}
-              onFollow={onFollow}
-              onTrackEntity={onTrackEntity}
-              trackedEntities={trackedEntities}
-            />
-          ))}
+          {sec.stories.map((story, i) => {
+            const storyKey = `${storyKeyPrefix}:${sec.id}-${i}`;
+            return (
+              <Fragment key={storyKey}>
+                <StoryCard
+                  story={story}
+                  accent={accent}
+                  onExpand={(entities) => onExpand(entities, storyKey)}
+                  onFollow={(entities) => onFollow(entities, storyKey)}
+                  onTrackEntity={(entity) => onTrackEntity(entity, storyKey)}
+                  trackedEntities={trackedEntities}
+                  secondaryCollapsed={secondaryCollapsedStories}
+                />
+                {renderAfterStory?.(storyKey)}
+              </Fragment>
+            );
+          })}
         </div>
       ))}
     </div>
   );
 }
-

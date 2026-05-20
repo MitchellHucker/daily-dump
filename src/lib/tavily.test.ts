@@ -1,6 +1,6 @@
 jest.mock("server-only", () => ({}));
 
-import { searchTopic } from "./tavily";
+import { fetchGeneralHeadlines, GENERAL_NEWS_INCLUDE_DOMAINS, searchTopic } from "./tavily";
 
 describe("searchTopic", () => {
   const originalFetch = global.fetch;
@@ -127,5 +127,57 @@ describe("searchTopic", () => {
     delete process.env.TAVILY_API_KEY;
 
     await expect(searchTopic("AI news", "tech", "AI & Tech")).rejects.toThrow(/missing tavily_api_key/i);
+  });
+});
+
+describe("fetchGeneralHeadlines", () => {
+  const originalFetch = global.fetch;
+  const originalEnv = process.env.TAVILY_API_KEY;
+
+  beforeEach(() => {
+    jest.useFakeTimers().setSystemTime(new Date("2026-04-26T12:00:00Z"));
+    process.env.TAVILY_API_KEY = "tvly-test";
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+    global.fetch = originalFetch;
+    process.env.TAVILY_API_KEY = originalEnv;
+    jest.restoreAllMocks();
+  });
+
+  test("posts general news query with max_results 4", async () => {
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        results: [
+          { title: "Headline A", url: "https://a.com/1", content: "Snap A", published_date: "2026-04-25" },
+          { title: "Headline B", url: "https://b.com/2", content: "Snap B" },
+        ],
+      }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const results = await fetchGeneralHeadlines();
+
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    expect(body.query).toBe("world geopolitical news headlines international");
+    expect(body.max_results).toBe(4);
+    expect(body.topic).toBe("news");
+    expect(body.include_raw_content).toBe(false);
+    expect(body.include_domains).toEqual(GENERAL_NEWS_INCLUDE_DOMAINS);
+    expect(results).toHaveLength(2);
+    expect(results[0]?.title).toBe("Headline A");
+  });
+
+  test("returns empty array when Tavily returns no mappable results", async () => {
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ results: [{ title: "", url: "https://empty.com", content: "No title" }] }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const results = await fetchGeneralHeadlines();
+    expect(results).toEqual([]);
   });
 });

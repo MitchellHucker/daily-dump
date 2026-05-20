@@ -7,6 +7,8 @@ export interface Story {
   sourceUrl?: string;
   sourceDate?: string; // YYYY-MM-DD if known
   entities: string[];
+  /** General headlines only — geographic focus for future filtering */
+  origin?: string;
 }
 
 export interface Section {

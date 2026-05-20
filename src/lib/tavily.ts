@@ -3,6 +3,18 @@ import "server-only";
 const TAVILY_BASE = "https://api.tavily.com";
 const DEFAULT_DAYS = 2;
 const DEFAULT_MAX_RESULTS = 6;
+const GENERAL_NEWS_MAX_RESULTS = 4;
+const GENERAL_NEWS_QUERY = "world geopolitical news headlines international";
+export const GENERAL_NEWS_INCLUDE_DOMAINS = [
+  "reuters.com",
+  "bbc.com",
+  "bbc.co.uk",
+  "apnews.com",
+  "ft.com",
+  "aljazeera.com",
+  "theguardian.com",
+  "economist.com",
+];
 const MAX_RESULT_AGE_DAYS = 7;
 const SEARCH_DEPTH = "advanced";
 
@@ -23,6 +35,7 @@ type TavilySearchOptions = {
   signal?: AbortSignal;
   days?: number;
   maxResults?: number;
+  includeDomains?: string[];
 };
 
 type TavilyResultPayload = {
@@ -120,4 +133,57 @@ export async function searchTopic(
     sectionId,
     results: results as TavilyResult[],
   };
+}
+
+async function searchNewsQuery(
+  query: string,
+  options: TavilySearchOptions = {},
+): Promise<TavilyResult[]> {
+  const days = options.days ?? DEFAULT_DAYS;
+  const maxResults = options.maxResults ?? DEFAULT_MAX_RESULTS;
+
+  const body: Record<string, unknown> = {
+    query,
+    search_depth: SEARCH_DEPTH,
+    topic: "news",
+    max_results: maxResults,
+    days,
+    include_answer: false,
+    include_raw_content: false,
+  };
+  if (options.includeDomains?.length) {
+    body.include_domains = options.includeDomains;
+  }
+
+  const response = await fetch(`${TAVILY_BASE}/search`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${getApiKey()}`,
+    },
+    body: JSON.stringify(body),
+    signal: options.signal,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Tavily search failed: ${response.status}`);
+  }
+
+  const data = (await response.json()) as TavilyResponsePayload;
+  const rawResults = Array.isArray(data.results) ? data.results : [];
+  const cutoff = freshnessCutoff();
+
+  return rawResults
+    .filter((result) => isFreshOrUndated(result, cutoff))
+    .map(mapResult)
+    .filter((result): result is TavilyResult => result !== null)
+    .slice(0, maxResults);
+}
+
+export async function fetchGeneralHeadlines(options: TavilySearchOptions = {}): Promise<TavilyResult[]> {
+  return searchNewsQuery(GENERAL_NEWS_QUERY, {
+    ...options,
+    maxResults: options.maxResults ?? GENERAL_NEWS_MAX_RESULTS,
+    includeDomains: options.includeDomains ?? GENERAL_NEWS_INCLUDE_DOMAINS,
+  });
 }

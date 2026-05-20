@@ -3,12 +3,16 @@
 import { Suspense } from "react";
 import { UserButton, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { BriefView } from "@/components/BriefView";
 import { FeedbackPanel } from "@/components/FeedbackPanel";
+import { GeneralNewsHeadlines } from "@/components/GeneralNewsHeadlines";
 import { NudgeCard } from "@/components/NudgeCard";
+import { PreviousDumpSection } from "@/components/PreviousDumpSection";
 import { ProfileBar } from "@/components/ProfileBar";
-import { useInteractionTracker } from "@/lib/interactions";
+import { mapGeneralNewsToStories, type GeneralNewsArticle } from "@/lib/generalNews";
+import { useInteractionTracker, type NudgeCandidate } from "@/lib/interactions";
+import type { Story } from "@/lib/types";
 import { TOPIC_OPTIONS_BY_ID, type ProfileTopicPreference } from "@/lib/onboarding";
 import { PROFILES, type Profile } from "@/lib/profiles";
 import { STUB_BRIEF, type Brief } from "@/lib/stubs";
@@ -154,9 +158,12 @@ export function BriefClient() {
   const [dismissedNudges, setDismissedNudges] = useState<Set<string>>(new Set());
   const [trackedEntities, setTrackedEntities] = useState<Set<string>>(new Set());
   const [nudgeAccepted, setNudgeAccepted] = useState<Record<string, string>>({});
-  const [nudgeKey, setNudgeKey] = useState<string | null>(null);
+  const [nudgePlacement, setNudgePlacement] = useState<NudgeCandidate | null>(null);
+  const [generalNewsStories, setGeneralNewsStories] = useState<Story[]>([]);
+  const [generalNewsLoading, setGeneralNewsLoading] = useState(true);
 
-  const { track, getNudge, dismissNudge } = useInteractionTracker();
+  const { track, getNudge, dismissNudge, markNudgeSessionAnswered } = useInteractionTracker();
+  const nudgeSessionAnswered = useRef(false);
 
   const activeProfile = devMode && active && active !== USER_PROFILE_ID ? PROFILES[active as keyof typeof PROFILES] : null;
   const canForceRegenerate = devMode && active !== "preview";
@@ -177,9 +184,12 @@ export function BriefClient() {
           ? PROFILES.ralitsa.name
           : clerkFeedbackName;
 
-  /** Preview stub can complete without a saved onboarding profile — still show brief + feedback. */
+  /** Latest dump UI only when today's brief exists (or Preview stub). Avoids showing yesterday as "Latest dump". */
   const showBriefComplete =
-    status === "done" && brief && (Boolean(userProfile) || Boolean(devMode && active === "preview"));
+    status === "done" &&
+    brief &&
+    (hasTodayBrief || Boolean(devMode && active === "preview")) &&
+    (Boolean(userProfile) || Boolean(devMode && active === "preview"));
 
   useEffect(() => {
     let cancelled = false;
@@ -187,9 +197,10 @@ export function BriefClient() {
     async function loadBriefs() {
       setIsCacheLoading(true);
       try {
-        const [briefsRes, profileRes] = await Promise.all([
+        const [briefsRes, profileRes, generalNewsRes] = await Promise.all([
           fetch("/api/briefs", { cache: "no-store" }),
           fetch("/api/profile", { cache: "no-store" }),
+          fetch("/api/general-news", { cache: "no-store" }),
         ]);
         if (!briefsRes.ok) throw new Error(`HTTP ${briefsRes.status}`);
         if (!profileRes.ok) throw new Error(`HTTP ${profileRes.status}`);
@@ -198,6 +209,12 @@ export function BriefClient() {
         const profileData = (await profileRes.json()) as UserProfileResponse;
         if (cancelled) return;
 
+        if (generalNewsRes.ok) {
+          const generalData = (await generalNewsRes.json()) as { articles?: GeneralNewsArticle[] };
+          setGeneralNewsStories(mapGeneralNewsToStories(generalData.articles ?? []));
+        }
+        setGeneralNewsLoading(false);
+
         setTodayDate(data.date);
         setDevMode(data.devMode);
         setUserProfile(profileData.profile);
@@ -205,20 +222,24 @@ export function BriefClient() {
         setCurrentBrief(data.currentBrief);
         setPreviousBrief(data.previousBrief);
 
-        if (data.currentBrief) {
-          setBrief(data.currentBrief.content);
-          setGenTime(formatTime(data.currentBrief.generated_at));
-          setHasTodayBrief(Boolean(data.todayBrief));
+        if (data.todayBrief) {
+          setBrief(data.todayBrief.content);
+          setGenTime(formatTime(data.todayBrief.generated_at));
+          setHasTodayBrief(true);
           setResetCountdown(formatUtcResetCountdown());
           setStatus("done");
         } else {
           setHasTodayBrief(false);
+          setBrief(null);
+          setGenTime(null);
+          setStatus("idle");
         }
       } catch (e) {
         if (cancelled) return;
         const msg = e instanceof Error ? e.message : String(e);
         setErr(`Failed to load cached briefs: ${msg}`);
         setStatus("error");
+        setGeneralNewsLoading(false);
       } finally {
         if (!cancelled) setIsCacheLoading(false);
       }
@@ -250,21 +271,28 @@ export function BriefClient() {
   }, [hasTodayBrief]);
 
   const checkForNudge = useCallback(() => {
-    const key = getNudge();
-    if (key && !dismissedNudges.has(key)) setNudgeKey(key);
+    if (nudgeSessionAnswered.current) return;
+
+    const candidate = getNudge();
+    if (!candidate || dismissedNudges.has(candidate.entityKey)) return;
+
+    setNudgePlacement((prev) => {
+      if (prev?.entityKey === candidate.entityKey && prev.storyKey === candidate.storyKey) return prev;
+      return candidate;
+    });
   }, [getNudge, dismissedNudges]);
 
   const handleExpand = useCallback(
-    (entities: string[]) => {
-      track("expand", entities);
+    (entities: string[], storyKey: string) => {
+      track("expand", entities, storyKey);
       setTimeout(checkForNudge, 100);
     },
     [track, checkForNudge],
   );
 
   const handleFollow = useCallback(
-    (entities: string[]) => {
-      track("follow", entities);
+    (entities: string[], storyKey: string) => {
+      track("follow", entities, storyKey);
       setTrackedEntities((prev) => new Set([...prev, ...entities]));
       setTimeout(checkForNudge, 100);
     },
@@ -272,33 +300,57 @@ export function BriefClient() {
   );
 
   const handleTrackEntity = useCallback(
-    (entity: string) => {
-      track("follow", [entity]);
+    (entity: string, storyKey: string) => {
+      track("follow", [entity], storyKey);
       setTrackedEntities((prev) => new Set([...prev, entity]));
       setTimeout(checkForNudge, 100);
     },
     [track, checkForNudge],
   );
 
+  const clearNudgePlacement = useCallback(
+    (entityKey: string) => {
+      nudgeSessionAnswered.current = true;
+      markNudgeSessionAnswered();
+      dismissNudge(entityKey);
+      setDismissedNudges((p) => new Set([...p, entityKey]));
+      setNudgePlacement(null);
+    },
+    [dismissNudge, markNudgeSessionAnswered],
+  );
+
   const handleNudgeYes = (key: string) => {
     setNudgeAccepted((p) => ({ ...p, [key]: "more" }));
-    dismissNudge(key);
-    setDismissedNudges((p) => new Set([...p, key]));
-    setNudgeKey(null);
+    clearNudgePlacement(key);
   };
 
   const handleNudgeCustom = (key: string, text: string) => {
     setNudgeAccepted((p) => ({ ...p, [key]: text }));
-    dismissNudge(key);
-    setDismissedNudges((p) => new Set([...p, key]));
-    setNudgeKey(null);
+    clearNudgePlacement(key);
   };
 
   const handleNudgeNo = (key: string) => {
-    dismissNudge(key);
-    setDismissedNudges((p) => new Set([...p, key]));
-    setNudgeKey(null);
+    clearNudgePlacement(key);
   };
+
+  const renderInlineNudge = useCallback(
+    (storyKey: string) => {
+      if (!nudgePlacement || nudgePlacement.storyKey !== storyKey) return null;
+      const { entityKey } = nudgePlacement;
+      return (
+        <NudgeCard
+          key={`${entityKey}-${storyKey}`}
+          entityKey={entityKey}
+          accent="var(--amber)"
+          inline
+          onYes={() => handleNudgeYes(entityKey)}
+          onCustom={(text) => handleNudgeCustom(entityKey, text)}
+          onNo={() => handleNudgeNo(entityKey)}
+        />
+      );
+    },
+    [nudgePlacement],
+  );
 
   const select = (id: string) => {
     if (active === id) return;
@@ -307,7 +359,7 @@ export function BriefClient() {
       setStatus("idle");
       setBrief(null);
     }
-    setNudgeKey(null);
+    setNudgePlacement(null);
     setErr("");
     setLiveStatus("");
   };
@@ -317,7 +369,7 @@ export function BriefClient() {
     setStatus("loading");
     setBrief(null);
     setErr("");
-    setNudgeKey(null);
+    setNudgePlacement(null);
     setLiveStatus("Starting…");
 
     if (p?.isStub) {
@@ -395,10 +447,38 @@ export function BriefClient() {
     }
   };
 
-  const firstName = activeProfile?.name.split(" ")[0] ?? "there";
+  const displayName = activeProfile?.name ?? clerkFeedbackName;
+  const firstName = displayName.split(" ")[0] ?? "there";
+  const showGeneralNews = generalNewsLoading || generalNewsStories.length > 0;
+  const generateButtonTopicSummary =
+    userProfile?.topics && userProfile.topics.length > 0
+      ? userProfile.topics.map((topic) => topic.label).join(" · ")
+      : activeProfile?.sections.map((section) => section.label).join(" · ") || "Your saved topics";
 
   const showProfileGateSpinner =
     status === "idle" && (isCacheLoading || (!devMode && !(userProfile?.topics && userProfile.topics.length > 0)));
+
+  /** Yesterday (or earlier) dump in Previous dump chrome — same whether or not today's brief exists. */
+  const previousDumpDisplay =
+    showBriefComplete && previousBrief
+      ? { brief: previousBrief.content, generatedAt: previousBrief.generated_at }
+      : !hasTodayBrief && currentBrief
+        ? { brief: currentBrief.content, generatedAt: currentBrief.generated_at }
+        : null;
+
+  const previousDumpSection =
+    previousDumpDisplay && !showProfileGateSpinner ? (
+      <PreviousDumpSection
+        brief={previousDumpDisplay.brief}
+        generatedAtLabel={formatDateTime(previousDumpDisplay.generatedAt)}
+        onExpand={handleExpand}
+        onFollow={handleFollow}
+        onTrackEntity={handleTrackEntity}
+        trackedEntities={trackedEntities}
+        renderAfterStory={renderInlineNudge}
+        className="mt-8"
+      />
+    ) : null;
 
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--ink)]">
@@ -422,42 +502,68 @@ export function BriefClient() {
           </div>
         ) : null}
 
-        {!showProfileGateSpinner && status === "idle" && userProfile && (
+        {!showProfileGateSpinner && status === "idle" && (userProfile || devMode) && (
           <div>
             <div className="mb-1 font-heading text-[28px] font-bold tracking-[-0.5px]">Morning, {firstName}.</div>
             <p className="mb-5 font-sans text-[13px] font-light text-[var(--ink-light)]">Your brief is ready to generate.</p>
             <button
               type="button"
-              className="mb-[18px] min-h-11 w-full rounded-[var(--radius)] bg-[var(--ink)] px-5 py-[13px] text-center font-mono text-[12px] font-semibold tracking-[0.04em] text-[var(--bg)] transition-opacity hover:opacity-90"
+              className="mb-6 flex w-full items-center justify-between gap-6 rounded-[var(--radius)] bg-[var(--ink)] px-[30px] py-[24px] text-left transition-opacity hover:opacity-90"
               onClick={() => generate()}
             >
-              Generate today&apos;s brief →
+              <span className="min-w-0">
+                <span className="block font-sans text-[18px] font-bold leading-[1.2] tracking-[-0.2px] text-[var(--bg)]">
+                  Get today&apos;s <span className="text-[var(--amber)]">Dump</span>
+                </span>
+                <span className="mt-[6px] block font-sans text-[13px] font-medium leading-[1.3] text-[rgba(247,246,242,0.45)]">
+                  {generateButtonTopicSummary}
+                </span>
+              </span>
+              <span aria-hidden="true" className="shrink-0 font-sans text-[26px] font-semibold leading-none text-[var(--amber)]">
+                →
+              </span>
             </button>
-            <div className="rounded-[var(--radius)] bg-[#f0ede6] px-[14px] py-3">
-              <div className="mb-2 font-mono text-[8px] font-medium uppercase tracking-[0.16em] text-[var(--ink-ghost)]">Your topics</div>
-              {userProfile.topics.map((topic, index) => {
-                const option = TOPIC_OPTIONS_BY_ID[topic.id];
-                return (
-                  <div key={topic.id} className={index === userProfile.topics.length - 1 ? "py-[7px]" : "border-b border-[#e8e4dc] py-[7px]"}>
-                    <div className="font-sans text-[11px] font-medium leading-[1.35] text-[var(--ink-mid)]">
-                      {option?.icon ?? "•"} {topic.label}
-                      {topic.interests.length ? ` · ${topic.interests.join(", ")}` : ""}
-                    </div>
-                    <div className="font-sans text-[10px] font-light leading-[1.4] text-[var(--ink-ghost)]">
-                      {topic.lens || "Broad general coverage"}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            {showGeneralNews ? (
+              <GeneralNewsHeadlines stories={generalNewsStories} loading={generalNewsLoading} />
+            ) : null}
+            {previousDumpSection}
+            {userProfile?.topics?.length ? (
+            <section className="mt-8 border-t border-[var(--rule)] pt-6">
+              <div className="rounded-[var(--radius)] bg-[#f0ede6] px-[14px] py-3">
+                <div className="mb-2 font-mono text-[8px] font-medium uppercase tracking-[0.16em] text-[var(--ink-ghost)]">Your topics</div>
+                <div className="divide-y divide-[var(--rule)]">
+                  {userProfile.topics.map((topic) => {
+                    const option = TOPIC_OPTIONS_BY_ID[topic.id];
+                    return (
+                      <div key={topic.id} className="py-[7px]">
+                        <div className="font-sans text-[11px] font-medium leading-[1.35] text-[var(--ink-mid)]">
+                          {option?.icon ?? "•"} {topic.label}
+                          {topic.interests.length ? ` · ${topic.interests.join(", ")}` : ""}
+                        </div>
+                        <div className="font-sans text-[10px] font-light leading-[1.4] text-[var(--ink-ghost)]">
+                          {topic.lens || "Broad general coverage"}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </section>
+            ) : null}
           </div>
         )}
 
         {status === "loading" && (
-          <div className="py-20 text-center">
-            <div className="mx-auto mb-5 h-8 w-8 animate-[dailyDumpSpin_0.8s_linear_infinite] rounded-full border-2 border-[var(--rule)] border-t-[var(--amber)]" />
-            <div className="mb-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-mid)]">{liveStatus || "Starting…"}</div>
-            <div className="font-mono text-[11px] uppercase tracking-[0.15em] text-[var(--ink-light)]">Searching · Compiling · Writing</div>
+          <div>
+            <div className="py-20 text-center">
+              <div className="mx-auto mb-5 h-8 w-8 animate-[dailyDumpSpin_0.8s_linear_infinite] rounded-full border-2 border-[var(--rule)] border-t-[var(--amber)]" />
+              <div className="mb-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--ink-mid)]">{liveStatus || "Starting…"}</div>
+              <div className="font-mono text-[11px] uppercase tracking-[0.15em] text-[var(--ink-light)]">Searching · Compiling · Writing</div>
+            </div>
+            {showGeneralNews ? (
+              <GeneralNewsHeadlines stories={generalNewsStories} loading={generalNewsLoading} />
+            ) : null}
+            {previousDumpSection}
           </div>
         )}
 
@@ -515,43 +621,22 @@ export function BriefClient() {
               ) : null}
             </div>
 
-            {nudgeKey ? (
-              <NudgeCard
-                entityKey={nudgeKey}
-                accent="var(--amber)"
-                onYes={() => handleNudgeYes(nudgeKey)}
-                onCustom={(text) => handleNudgeCustom(nudgeKey, text)}
-                onNo={() => handleNudgeNo(nudgeKey)}
-              />
-            ) : null}
-
             <BriefView
               brief={brief}
               accent="var(--amber)"
+              storyKeyPrefix="latest"
               onExpand={handleExpand}
               onFollow={handleFollow}
               onTrackEntity={handleTrackEntity}
               trackedEntities={trackedEntities}
+              renderAfterStory={renderInlineNudge}
             />
 
-            {previousBrief ? (
-              <div className="mt-12 border-t border-[var(--rule)] pt-6">
-                <div className="rounded-[var(--radius)] bg-[#ede9e3] p-4">
-                  <div className="mb-4 flex justify-between border-l-2 border-[var(--amber)] pl-3 font-mono uppercase tracking-[0.06em]">
-                    <span className="text-[10px] font-semibold text-[var(--ink-mid)]">Previous dump</span>
-                    <span className="text-[9px] text-stone-500">{formatDateTime(previousBrief.generated_at)}</span>
-                  </div>
-                  <BriefView
-                    brief={previousBrief.content}
-                    accent="var(--amber)"
-                    onExpand={handleExpand}
-                    onFollow={handleFollow}
-                    onTrackEntity={handleTrackEntity}
-                    trackedEntities={trackedEntities}
-                  />
-                </div>
-              </div>
+            {showGeneralNews ? (
+              <GeneralNewsHeadlines stories={generalNewsStories} loading={generalNewsLoading} className="mt-8" />
             ) : null}
+
+            {previousDumpSection}
 
             <FeedbackPanel profileName={feedbackProfileName} />
 
